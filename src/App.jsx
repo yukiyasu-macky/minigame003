@@ -39,6 +39,15 @@ export default function App() {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     const fruitIcons = ["🍎", "🍊", "🍓", "🍇", "🍋", "🍑"];
+    const imageAssets = {
+      background: new Image(),
+      basket: new Image(),
+    };
+
+    imageAssets.background.src = assets.background;
+    imageAssets.basket.src = assets.basket;
+
+    const isImageReady = (image) => image.complete && image.naturalWidth > 0;
 
     const roundedRect = (x, y, w, h, r) => {
       const radius = Math.min(r, w / 2, h / 2);
@@ -144,6 +153,20 @@ export default function App() {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, game.width, game.height);
 
+      if (isImageReady(imageAssets.background)) {
+        const image = imageAssets.background;
+        const scale = Math.max(game.width / image.naturalWidth, game.height / image.naturalHeight);
+        const width = image.naturalWidth * scale;
+        const height = image.naturalHeight * scale;
+        const x = (game.width - width) / 2;
+        const y = (game.height - height) / 2;
+
+        ctx.save();
+        ctx.globalAlpha = 0.24;
+        ctx.drawImage(image, x, y, width, height);
+        ctx.restore();
+      }
+
       ctx.fillStyle = "rgba(255,255,255,0.52)";
       for (let i = 0; i < 7; i += 1) {
         const x = ((i * 120 + game.elapsed * 12) % (game.width + 160)) - 80;
@@ -184,6 +207,22 @@ export default function App() {
     const drawBasket = (basket) => {
       ctx.save();
       ctx.translate(basket.x, basket.y);
+
+      if (isImageReady(imageAssets.basket)) {
+        const image = imageAssets.basket;
+        const imageWidth = basket.width * 1.18;
+        const imageHeight = Math.max(basket.height * 1.9, imageWidth * (image.naturalHeight / image.naturalWidth));
+
+        ctx.drawImage(
+          image,
+          -imageWidth / 2,
+          -imageHeight / 2,
+          imageWidth,
+          imageHeight
+        );
+        ctx.restore();
+        return;
+      }
 
       ctx.fillStyle = "#bf702b";
       roundedRect(
