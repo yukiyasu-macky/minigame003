@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
+import { assets } from "./assetsConfig";
 
 export default function App() {
   const canvasRef = useRef(null);
@@ -342,8 +343,7 @@ export default function App() {
 
   const handleShare = () => {
     const score = finalScore;
-    const iconUrl =
-      "https://raw.githubusercontent.com/yukiyasu-macky/minigame001/refs/heads/main/x_icon.png";
+    const iconUrl = `${window.location.origin}${assets.shareIcon}`;
 
     if (liff.isApiAvailable("shareTargetPicker")) {
       liff
@@ -497,7 +497,7 @@ export default function App() {
       <section className="phoneFrame">
         {screen === "title" && (
           <div className="panel titleScreen">
-            <img className="titleLogo" src="/title_logo.png" alt="MINI GAMES" />
+            <img className="titleLogo" src={assets.titleLogo} alt="MINI GAMES" />
             <div className="fruitBurst">🍎 🍊 🍓</div>
             <p>落ちてくるフルーツをカゴでキャッチ</p>
 
