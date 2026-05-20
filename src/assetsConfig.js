@@ -10,6 +10,11 @@ export const assets = {
     assetPath("assets/item_02.png"),
     assetPath("assets/item_03.png"),
   ],
+  rareImages: [
+    assetPath("assets/rare_01.png"),
+    assetPath("assets/rare_02.png"),
+    assetPath("assets/rare_03.png"),
+  ],
   hazardImage: assetPath("assets/hazard.png"),
   sounds: {
     catch: assetPath("assets/se_catch.mp3"),

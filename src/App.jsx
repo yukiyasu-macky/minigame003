@@ -31,9 +31,12 @@ const gameCopy = {
 // without hunting through rendering, collision, and share UI code.
 const catchGameConfig = {
   itemIcons: ["🍎", "🍊", "🍓", "🍇", "🍋", "🍑"],
+  rareIcons: ["🐟", "🪶", "🧶"],
   hazardIcon: "💣",
   startingLives: 3,
   pointsPerCatch: 10,
+  pointsPerRareCatch: 30,
+  rareChance: 0.1,
 };
 
 
@@ -142,6 +145,11 @@ export default function App() {
         image.src = src;
         return image;
       }),
+      rares: assets.rareImages.map((src) => {
+        const image = new Image();
+        image.src = src;
+        return image;
+      }),
       hazard: new Image(),
     };
 
@@ -233,16 +241,22 @@ export default function App() {
     const spawnFruit = (game) => {
       const size = 28 + Math.random() * 14;
       const isBomb = Math.random() < Math.min(0.28, 0.12 + game.elapsed * 0.003);
+      const isRare = !isBomb && Math.random() < catchGameConfig.rareChance;
       const itemIndex = Math.floor(Math.random() * catchGameConfig.itemIcons.length);
+      const rareIndex = Math.floor(Math.random() * catchGameConfig.rareIcons.length);
 
       game.fruits.push({
         x: size + Math.random() * Math.max(1, game.width - size * 2),
         y: -size,
         size,
         speed: 118 + game.elapsed * 5.8 + Math.random() * 66,
-        icon: isBomb ? catchGameConfig.hazardIcon : catchGameConfig.itemIcons[itemIndex],
-        imageIndex: itemIndex,
-        type: isBomb ? "bomb" : "fruit",
+        icon: isBomb
+          ? catchGameConfig.hazardIcon
+          : isRare
+            ? catchGameConfig.rareIcons[rareIndex]
+            : catchGameConfig.itemIcons[itemIndex],
+        imageIndex: isRare ? rareIndex : itemIndex,
+        type: isBomb ? "bomb" : isRare ? "rare" : "fruit",
         spin: Math.random() * Math.PI * 2,
       });
     };
@@ -303,6 +317,8 @@ export default function App() {
       const itemImage =
         fruit.type === "bomb"
           ? imageAssets.hazard
+          : fruit.type === "rare"
+            ? imageAssets.rares[fruit.imageIndex % imageAssets.rares.length]
           : imageAssets.items[fruit.imageIndex % imageAssets.items.length];
 
       if (itemImage && isImageReady(itemImage)) {
@@ -426,7 +442,10 @@ export default function App() {
             return false;
           }
 
-          game.score += catchGameConfig.pointsPerCatch;
+          game.score +=
+            fruit.type === "rare"
+              ? catchGameConfig.pointsPerRareCatch
+              : catchGameConfig.pointsPerCatch;
           playAudio("catch");
           setScoreView(game.score);
           return false;
