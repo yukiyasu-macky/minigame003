@@ -8,13 +8,14 @@ const gameCopy = {
   titleFlavor: "DROP CATCH 003",
   titleDescription: "落ちてくるアイテムをカゴでキャッチ",
   titleBurst: "🐾 🐱 🧶",
-  resultBurst: "🍇 🍑 🍋",
+  resultBurst: "🐾 🐱 🐾",
   loading: "よみこみ中...",
   startButton: "タップしてスタート",
-  resultTitle: "Result",
-  scoreLabel: "FINAL SCORE",
-  shareButton: "シェアする！",
-  replayButton: "もう一度遊ぶ",
+  resultTitle: "けっか！",
+  scoreLabel: "にくきゅうスコア",
+  resultMessage: "またあそんでね",
+  shareButton: "シェアする",
+  replayButton: "もういちどあそぶ",
   shareAltText: "minigame003 のスコアをシェア！",
   shareScoreText: (score) => `minigame003で${score}点をとったよ！`,
   shareSubtitle: "minigame003 - アイテムキャッチゲーム",
@@ -830,18 +831,24 @@ export default function App() {
 
         {screen === "result" && (
           <div className="panel resultScreen">
-            <div className="fruitBurst">{gameCopy.resultBurst}</div>
-            <h1>{gameCopy.resultTitle}</h1>
-            <p className="scoreLabel">{gameCopy.scoreLabel}</p>
-            <div className="finalScore">{finalScore}</div>
+            <section className="resultCard" aria-label={gameCopy.resultTitle}>
+              <img className="resultCat" src={assets.itemImages[0]} alt="" aria-hidden="true" />
+              <h1 className="resultTitle">{gameCopy.resultTitle}</h1>
+              <p className="scoreLabel">{gameCopy.scoreLabel}</p>
+              <div className="scoreBox">
+                <span className="finalScore">{finalScore}</span>
+                <span className="scoreUnit">pt</span>
+              </div>
+              <p className="resultMessage">{gameCopy.resultMessage}</p>
 
-            <button className="shareButton" type="button" onClick={handleShare}>
-              {gameCopy.shareButton}
-            </button>
+              <button className="shareButton resultButton" type="button" onClick={handleShare}>
+                {gameCopy.shareButton}
+              </button>
 
-            <button className="primaryButton" type="button" onClick={startGame}>
-              {gameCopy.replayButton}
-            </button>
+              <button className="primaryButton resultButton" type="button" onClick={startGame}>
+                {gameCopy.replayButton}
+              </button>
+            </section>
           </div>
         )}
       </section>
@@ -1244,19 +1251,134 @@ export default function App() {
           box-shadow: 0 3px 0 #11963c, 0 10px 20px rgba(0,0,0,0.18);
         }
 
+        .resultScreen {
+          justify-content: center;
+          padding: 42px 24px;
+          background:
+            linear-gradient(180deg, rgba(255, 244, 229, 0.70), rgba(224, 184, 139, 0.66)),
+            url("${assets.background}") center / cover no-repeat,
+            #f7e0c5;
+        }
+
+        .resultCard {
+          width: min(350px, 92%);
+          padding: 28px 24px 30px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          border: 4px solid rgba(255,255,255,0.9);
+          border-radius: 32px;
+          color: #71462f;
+          background: rgba(255, 250, 235, 0.94);
+          box-shadow:
+            inset 0 0 0 3px rgba(174, 112, 72, 0.34),
+            0 10px 0 rgba(156, 94, 54, 0.20),
+            0 22px 36px rgba(92, 60, 40, 0.22);
+        }
+
+        .resultCat {
+          width: 112px;
+          height: 86px;
+          object-fit: contain;
+          margin: -8px 0 4px;
+          filter: drop-shadow(0 6px 7px rgba(104, 68, 46, 0.16));
+        }
+
+        .resultTitle {
+          margin: 0 0 16px;
+          color: #d99575;
+          font-size: clamp(54px, 15vw, 74px);
+          font-weight: 1000;
+          line-height: 1;
+          letter-spacing: 0;
+          white-space: nowrap;
+          -webkit-text-stroke: 7px #ffffff;
+          paint-order: stroke fill;
+          text-shadow:
+            0 5px 0 #8a5438,
+            0 10px 12px rgba(104, 68, 46, 0.16);
+        }
+
         .scoreLabel {
-          margin-bottom: 8px;
-          color: rgba(38,50,83,0.72);
-          font-size: 15px;
+          min-width: min(270px, 92%);
+          margin: 0 0 14px;
+          padding: 9px 18px;
+          border-radius: 10px;
+          color: #fffaf2;
+          background: #e88484;
+          box-shadow:
+            inset 0 4px 0 rgba(255,255,255,0.20),
+            0 5px 0 rgba(163, 86, 73, 0.20);
+          font-size: 20px;
+          font-weight: 900;
+          line-height: 1;
+        }
+
+        .scoreBox {
+          width: min(286px, 94%);
+          min-height: 122px;
+          margin: 0 0 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 4px solid rgba(239, 205, 148, 0.86);
+          border-radius: 28px;
+          background: rgba(255, 231, 166, 0.86);
+          box-shadow: 0 10px 18px rgba(137, 91, 54, 0.12);
         }
 
         .finalScore {
-          margin-bottom: 10px;
-          color: #ff6464;
-          font-size: clamp(58px, 18vw, 92px);
+          margin: 0 8px 0 0;
+          color: #e58b86;
+          font-size: clamp(72px, 22vw, 112px);
           font-weight: 1000;
           line-height: 1;
-          text-shadow: 0 5px 0 rgba(255,255,255,0.72);
+          -webkit-text-stroke: 7px #ffffff;
+          paint-order: stroke fill;
+          text-shadow:
+            0 5px 0 #89563d,
+            0 12px 14px rgba(101, 64, 41, 0.14);
+        }
+
+        .scoreUnit {
+          margin-top: 30px;
+          color: #89563d;
+          font-size: 30px;
+          font-weight: 1000;
+          line-height: 1;
+        }
+
+        .resultMessage {
+          margin: 0 0 14px;
+          color: rgba(113, 70, 47, 0.72);
+          font-size: 15px;
+          font-weight: 900;
+        }
+
+        .resultButton {
+          width: min(286px, 92%);
+          min-height: 58px;
+          margin-top: 12px;
+          border: 4px solid #fff8ec;
+          font-size: 22px;
+          -webkit-text-stroke: 4px rgba(93, 89, 75, 0.50);
+          paint-order: stroke fill;
+        }
+
+        .resultButton.shareButton {
+          background: #8fc79b;
+          box-shadow:
+            inset 0 6px 0 rgba(255,255,255,0.26),
+            0 7px 0 #669e72,
+            0 15px 22px rgba(83, 92, 60, 0.18);
+        }
+
+        .resultButton.primaryButton {
+          background: #f2938d;
+          box-shadow:
+            inset 0 6px 0 rgba(255,255,255,0.26),
+            0 7px 0 #cf706b,
+            0 15px 22px rgba(113, 69, 55, 0.18);
         }
 
         .srOnly {
