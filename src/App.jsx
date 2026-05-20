@@ -45,6 +45,7 @@ export default function App() {
   const rafRef = useRef(null);
   const gameRef = useRef(null);
   const audioAssetsRef = useRef(null);
+  const assetPreloadRef = useRef(null);
 
   const [screen, setScreen] = useState("title");
   const [loading, setLoading] = useState(0);
@@ -52,18 +53,18 @@ export default function App() {
   const [livesView, setLivesView] = useState(catchGameConfig.startingLives);
   const [finalScore, setFinalScore] = useState(0);
 
+  const createAudio = (src, options = {}) => {
+    if (!src || typeof Audio === "undefined") return null;
+
+    const audio = new Audio(src);
+    audio.preload = "auto";
+    audio.loop = Boolean(options.loop);
+    audio.volume = options.volume ?? 1;
+    return audio;
+  };
+
   const getAudioAssets = () => {
     if (audioAssetsRef.current) return audioAssetsRef.current;
-
-    const createAudio = (src, options = {}) => {
-      if (!src) return null;
-
-      const audio = new Audio(src);
-      audio.preload = "auto";
-      audio.loop = Boolean(options.loop);
-      audio.volume = options.volume ?? 1;
-      return audio;
-    };
 
     audioAssetsRef.current = {
       catch: createAudio(assets.sounds.catch, { volume: 0.65 }),
@@ -73,6 +74,90 @@ export default function App() {
     };
 
     return audioAssetsRef.current;
+  };
+
+  const getPreloadedImage = (src) => assetPreloadRef.current?.images.get(src);
+
+  const createImage = (src) => {
+    const preloadedImage = getPreloadedImage(src);
+    if (preloadedImage) return preloadedImage;
+
+    const image = new Image();
+    image.src = src;
+    return image;
+  };
+
+  const preloadImage = (src) =>
+    new Promise((resolve) => {
+      if (!src || typeof Image === "undefined") {
+        resolve();
+        return;
+      }
+
+      const image = new Image();
+      image.onload = () => {
+        assetPreloadRef.current?.images.set(src, image);
+        resolve();
+      };
+      image.onerror = () => resolve();
+      image.src = src;
+
+      if (image.complete) {
+        if (image.naturalWidth > 0) assetPreloadRef.current?.images.set(src, image);
+        resolve();
+      }
+    });
+
+  const preloadBgm = () =>
+    new Promise((resolve) => {
+      if (typeof navigator !== "undefined" && navigator.userAgent.includes("jsdom")) {
+        resolve();
+        return;
+      }
+
+      const bgm = getAudioAssets().bgm;
+      if (!bgm) {
+        resolve();
+        return;
+      }
+
+      const finish = () => resolve();
+      bgm.addEventListener("canplaythrough", finish, { once: true });
+      bgm.addEventListener("error", finish, { once: true });
+
+      try {
+        bgm.load();
+      } catch {
+        resolve();
+      }
+
+      window.setTimeout(resolve, 1200);
+    });
+
+  const preloadAssets = () => {
+    if (assetPreloadRef.current?.promise) return assetPreloadRef.current.promise;
+
+    assetPreloadRef.current = {
+      images: new Map(),
+      promise: null,
+    };
+
+    const imageSources = [
+      assets.background,
+      assets.basket,
+      assets.titleLogo,
+      assets.shareIcon,
+      ...(assets.itemImages || []),
+      ...(assets.rareImages || []),
+      assets.hazardImage,
+    ].filter(Boolean);
+
+    assetPreloadRef.current.promise = Promise.all([
+      ...imageSources.map(preloadImage),
+      preloadBgm(),
+    ]).then(() => {});
+
+    return assetPreloadRef.current.promise;
   };
 
   const playAudio = (name) => {
@@ -93,6 +178,7 @@ export default function App() {
     if (!bgm || !bgm.paused) return;
 
     try {
+      bgm.currentTime = 0;
       const playPromise = bgm.play();
       if (playPromise) playPromise.catch(() => {});
     } catch {
@@ -115,13 +201,23 @@ export default function App() {
   useEffect(() => {
     if (screen !== "title") return;
 
+    let isCancelled = false;
+    let isReady = false;
     setLoading(0);
     const start = performance.now();
     const duration = 1200;
 
+    preloadAssets()
+      .catch(() => {})
+      .then(() => {
+        isReady = true;
+      });
+
     const tick = () => {
+      if (isCancelled) return;
+
       const progress = Math.min(
-        100,
+        isReady ? 100 : 95,
         ((performance.now() - start) / duration) * 100
       );
       setLoading(progress);
@@ -129,7 +225,10 @@ export default function App() {
     };
 
     rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
+    return () => {
+      isCancelled = true;
+      cancelAnimationFrame(rafRef.current);
+    };
   }, [screen]);
 
   useEffect(() => {
@@ -138,24 +237,12 @@ export default function App() {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     const imageAssets = {
-      background: new Image(),
-      basket: new Image(),
-      items: assets.itemImages.map((src) => {
-        const image = new Image();
-        image.src = src;
-        return image;
-      }),
-      rares: assets.rareImages.map((src) => {
-        const image = new Image();
-        image.src = src;
-        return image;
-      }),
-      hazard: new Image(),
+      background: createImage(assets.background),
+      basket: createImage(assets.basket),
+      items: assets.itemImages.map(createImage),
+      rares: assets.rareImages.map(createImage),
+      hazard: createImage(assets.hazardImage),
     };
-
-    imageAssets.background.src = assets.background;
-    imageAssets.basket.src = assets.basket;
-    imageAssets.hazard.src = assets.hazardImage;
 
     const isImageReady = (image) => image.complete && image.naturalWidth > 0;
 
