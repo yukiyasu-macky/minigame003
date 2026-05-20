@@ -7,9 +7,9 @@ const gameCopy = {
   titleLogoAlt: "minigame003",
   titleFlavor: "DROP CATCH 003",
   titleDescription: "落ちてくるアイテムをカゴでキャッチ",
-  titleBurst: "🍎 🍊 🍓",
+  titleBurst: "🐾 🐱 🧶",
   resultBurst: "🍇 🍑 🍋",
-  loading: "Loading...",
+  loading: "よみこみ中...",
   startButton: "タップしてスタート",
   resultTitle: "Result",
   scoreLabel: "FINAL SCORE",
@@ -108,25 +108,24 @@ export default function App() {
       }
     });
 
-  const preloadBgm = () =>
+  const preloadAudio = (audio) =>
     new Promise((resolve) => {
       if (typeof navigator !== "undefined" && navigator.userAgent.includes("jsdom")) {
         resolve();
         return;
       }
 
-      const bgm = getAudioAssets().bgm;
-      if (!bgm) {
+      if (!audio) {
         resolve();
         return;
       }
 
       const finish = () => resolve();
-      bgm.addEventListener("canplaythrough", finish, { once: true });
-      bgm.addEventListener("error", finish, { once: true });
+      audio.addEventListener("canplaythrough", finish, { once: true });
+      audio.addEventListener("error", finish, { once: true });
 
       try {
-        bgm.load();
+        audio.load();
       } catch {
         resolve();
       }
@@ -134,10 +133,16 @@ export default function App() {
       window.setTimeout(resolve, 1200);
     });
 
-  const preloadAssets = () => {
+  const preloadAssets = (onProgress) => {
+    if (assetPreloadRef.current?.complete) {
+      onProgress?.(100);
+      return assetPreloadRef.current.promise;
+    }
+
     if (assetPreloadRef.current?.promise) return assetPreloadRef.current.promise;
 
     assetPreloadRef.current = {
+      complete: false,
       images: new Map(),
       promise: null,
     };
@@ -152,10 +157,31 @@ export default function App() {
       assets.hazardImage,
     ].filter(Boolean);
 
+    const audioAssets = getAudioAssets();
+    const audioSources = [
+      audioAssets.bgm,
+      audioAssets.catch,
+      audioAssets.miss,
+      audioAssets.damage,
+    ].filter(Boolean);
+
+    const total = imageSources.length + audioSources.length;
+    let completed = 0;
+
+    const completeOne = () => {
+      completed += 1;
+      onProgress?.(total > 0 ? (completed / total) * 100 : 100);
+    };
+
+    if (total === 0) onProgress?.(100);
+
     assetPreloadRef.current.promise = Promise.all([
-      ...imageSources.map(preloadImage),
-      preloadBgm(),
-    ]).then(() => {});
+      ...imageSources.map((src) => preloadImage(src).finally(completeOne)),
+      ...audioSources.map((audio) => preloadAudio(audio).finally(completeOne)),
+    ]).then(() => {
+      assetPreloadRef.current.complete = true;
+      onProgress?.(100);
+    });
 
     return assetPreloadRef.current.promise;
   };
@@ -202,32 +228,18 @@ export default function App() {
     if (screen !== "title") return;
 
     let isCancelled = false;
-    let isReady = false;
     setLoading(0);
-    const start = performance.now();
-    const duration = 1200;
 
-    preloadAssets()
+    preloadAssets((progress) => {
+      if (!isCancelled) setLoading(progress);
+    })
       .catch(() => {})
       .then(() => {
-        isReady = true;
+        if (!isCancelled) setLoading(100);
       });
 
-    const tick = () => {
-      if (isCancelled) return;
-
-      const progress = Math.min(
-        isReady ? 100 : 95,
-        ((performance.now() - start) / duration) * 100
-      );
-      setLoading(progress);
-      if (progress < 100) rafRef.current = requestAnimationFrame(tick);
-    };
-
-    rafRef.current = requestAnimationFrame(tick);
     return () => {
       isCancelled = true;
-      cancelAnimationFrame(rafRef.current);
     };
   }, [screen]);
 
@@ -602,6 +614,8 @@ export default function App() {
   }, [screen]);
 
   const startGame = () => {
+    if (loading < 100) return;
+
     getAudioAssets();
     setScoreView(0);
     setLivesView(catchGameConfig.startingLives);
@@ -766,22 +780,42 @@ export default function App() {
         {screen === "title" && (
           <div className="panel titleScreen">
             <img className="titleLogo" src={assets.titleLogo} alt={gameCopy.titleLogoAlt} />
-            <h1 className="gameTitle">{gameCopy.title}</h1>
-            <div className="gameFlavor">{gameCopy.titleFlavor}</div>
-            <div className="fruitBurst">{gameCopy.titleBurst}</div>
-            <p>{gameCopy.titleDescription}</p>
-
-            <div className="loadingTrack">
-              <div className="loadingBar" style={{ width: `${loading}%` }} />
+            <div className="titleDecor" aria-hidden="true">
+              <span className="pawMark" />
+              <span className="pawMark pawMarkMint" />
+              <span className="yarnMark" />
             </div>
 
-            {loading >= 100 ? (
-              <button className="primaryButton" type="button" onClick={startGame}>
-                {gameCopy.startButton}
-              </button>
-            ) : (
-              <div className="loadingText">{gameCopy.loading}</div>
-            )}
+            <div className="loadingText">{gameCopy.loading}</div>
+            <div className="loadingTrack" aria-label={gameCopy.loading}>
+              <div className="loadingBar" style={{ width: `${loading}%` }}>
+                <span className="loadingPaw"><span className="pawMark" /></span>
+              </div>
+              <div className="loadingPawTrail" aria-hidden="true">
+                <span className="pawMark" />
+                <span className="pawMark" />
+                <span className="pawMark" />
+                <span className="pawMark" />
+                <span className="pawMark" />
+              </div>
+            </div>
+
+            <p className="titleDescription">
+              <span className="inlinePaw pawMark" aria-hidden="true" />
+              <span>{gameCopy.titleDescription}！</span>
+              <span className="inlinePaw pawMark" aria-hidden="true" />
+            </p>
+
+            <button
+              className="primaryButton"
+              type="button"
+              onClick={startGame}
+              disabled={loading < 100}
+            >
+              <span className="buttonPaw pawMark" aria-hidden="true" />
+              {gameCopy.startButton}
+              <span className="buttonPaw pawMark" aria-hidden="true" />
+            </button>
           </div>
         )}
 
@@ -889,18 +923,103 @@ export default function App() {
         }
 
         .titleScreen {
+          position: relative;
           justify-content: flex-start;
-          padding-top: max(54px, calc(env(safe-area-inset-top) + 42px));
+          padding: max(30px, calc(env(safe-area-inset-top) + 26px)) 22px 34px;
+          background:
+            linear-gradient(180deg, rgba(255,243,230,0.58), rgba(255,236,202,0.62)),
+            url("${assets.background}") center / cover no-repeat,
+            #fff3e6;
+        }
+
+        .titleScreen::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background:
+            radial-gradient(circle at 14% 18%, rgba(255,255,255,0.64), transparent 16%),
+            radial-gradient(circle at 82% 74%, rgba(255,255,255,0.46), transparent 20%);
+        }
+
+        .titleScreen > * {
+          position: relative;
+          z-index: 1;
         }
 
         .titleLogo {
-          width: min(92%, 390px);
+          width: min(112%, 500px);
           height: auto;
-          margin: 0 0 10px;
+          margin: 44px 0 24px;
           display: block;
-          filter: drop-shadow(0 12px 18px rgba(28, 35, 62, 0.22));
+          filter: drop-shadow(0 14px 12px rgba(94, 60, 38, 0.18));
         }
 
+        .titleDecor {
+          position: absolute;
+          top: 24%;
+          left: 8%;
+          right: 8%;
+          height: 70px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          filter: drop-shadow(0 2px 0 rgba(255,255,255,0.84));
+          opacity: 0.94;
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        .pawMark {
+          --paw-color: #ff8f95;
+          position: relative;
+          width: 32px;
+          height: 30px;
+          display: inline-block;
+          flex: 0 0 auto;
+        }
+
+        .pawMark::before {
+          content: "";
+          position: absolute;
+          left: 7px;
+          bottom: 0;
+          width: 18px;
+          height: 15px;
+          border-radius: 50% 50% 46% 46%;
+          background: var(--paw-color);
+        }
+
+        .pawMark::after {
+          content: "";
+          position: absolute;
+          left: 1px;
+          top: 2px;
+          width: 8px;
+          height: 10px;
+          border-radius: 50%;
+          background: var(--paw-color);
+          box-shadow:
+            11px -3px 0 var(--paw-color),
+            22px 0 0 var(--paw-color);
+        }
+
+        .pawMarkMint {
+          --paw-color: #77d39b;
+          transform: translateY(28px);
+        }
+
+        .yarnMark {
+          width: 28px;
+          height: 28px;
+          border: 3px solid #5aa5b6;
+          border-radius: 50%;
+          background:
+            linear-gradient(35deg, transparent 44%, #5aa5b6 45% 52%, transparent 53%),
+            linear-gradient(-35deg, transparent 44%, #5aa5b6 45% 52%, transparent 53%),
+            #87d6dd;
+          transform: translateY(12px);
+        }
 
         .gameTitle {
           margin: 0;
@@ -941,28 +1060,129 @@ export default function App() {
           line-height: 1.6;
         }
 
-        .loadingTrack {
-          width: min(280px, 82%);
-          height: 20px;
-          padding: 4px;
+        .titleDescription {
+          width: min(360px, 94%);
+          max-width: none;
+          min-height: 54px;
+          margin: 28px 0 24px;
+          padding: 13px 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 4px solid rgba(255,255,255,0.92);
           border-radius: 999px;
-          background: rgba(255,255,255,0.74);
+          color: #6c3a24;
+          background: rgba(255, 247, 221, 0.94);
+          box-shadow:
+            inset 0 -4px 0 rgba(231, 177, 109, 0.20),
+            0 8px 0 rgba(196, 126, 84, 0.22),
+            0 16px 26px rgba(119, 82, 52, 0.15);
+          font-size: 17px;
+          font-weight: 900;
+          line-height: 1.35;
+        }
+
+        .titleDescription::before,
+        .titleDescription::after {
+          content: none;
+        }
+
+        .inlinePaw {
+          --paw-color: #f0908c;
+          width: 28px;
+          height: 26px;
+          margin: 0 8px;
+          transform: scale(0.82);
+        }
+
+        .loadingTrack {
+          position: relative;
+          width: min(374px, 92%);
+          height: 42px;
+          padding: 6px;
+          border: 3px solid #ffffff;
+          border-radius: 999px;
+          background: rgba(255, 250, 235, 0.94);
+          box-shadow:
+            0 0 0 3px rgba(173, 116, 72, 0.5),
+            inset 0 4px 10px rgba(128, 86, 52, 0.12),
+            0 10px 18px rgba(112, 72, 44, 0.14);
+          overflow: hidden;
         }
 
         .loadingBar {
+          position: relative;
           height: 100%;
           border-radius: 999px;
-          background: linear-gradient(90deg, #ff6464, #ffbd4a, #66dc7a);
-          transition: width 80ms linear;
+          min-width: 32px;
+          background: #ff8d94;
+          box-shadow:
+            inset 0 5px 0 rgba(255,255,255,0.38),
+            inset 0 -4px 0 rgba(218, 97, 100, 0.22);
+          transition: width 160ms ease-out;
+          overflow: hidden;
+          z-index: 2;
+        }
+
+        .loadingBar::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(circle at 18% 50%, rgba(255,255,255,0.24) 0 7px, transparent 8px),
+            radial-gradient(circle at 42% 50%, rgba(255,255,255,0.18) 0 7px, transparent 8px),
+            radial-gradient(circle at 66% 50%, rgba(255,255,255,0.18) 0 7px, transparent 8px),
+            radial-gradient(circle at 90% 50%, rgba(255,255,255,0.16) 0 7px, transparent 8px);
+        }
+
+        .loadingPaw {
+          position: absolute;
+          right: 6px;
+          top: 50%;
+          width: 30px;
+          height: 30px;
+          display: grid;
+          place-items: center;
+          border-radius: 50%;
+          background: #fff8ec;
+          transform: translateY(-50%);
+          box-shadow: 0 2px 0 rgba(131, 74, 48, 0.22);
+          z-index: 3;
+        }
+
+        .loadingPaw .pawMark {
+          width: 20px;
+          height: 18px;
+          transform: scale(0.66);
+        }
+
+        .loadingPawTrail {
+          position: absolute;
+          inset: 0 18px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          z-index: 1;
+          pointer-events: none;
+        }
+
+        .loadingPawTrail .pawMark {
+          --paw-color: rgba(119, 82, 52, 0.34);
+          width: 20px;
+          height: 18px;
+          transform: scale(0.58);
         }
 
         .loadingText {
-          min-height: 54px;
-          margin-top: 22px;
+          min-height: 34px;
+          margin: 8px 0 8px;
           display: flex;
           align-items: center;
-          color: rgba(38,50,83,0.72);
-          font-weight: 800;
+          color: #6c3a24;
+          font-size: 20px;
+          font-weight: 900;
+          letter-spacing: 0;
+          text-shadow: 0 2px 0 rgba(255,255,255,0.78);
         }
 
         .primaryButton,
@@ -979,9 +1199,30 @@ export default function App() {
         }
 
         .primaryButton {
-          margin-top: 22px;
-          background: #ff6464;
-          box-shadow: 0 7px 0 #c94545, 0 16px 28px rgba(0,0,0,0.22);
+          margin-top: 8px;
+          min-width: min(330px, 92%);
+          border: 5px solid #fff;
+          background: #ff7478;
+          box-shadow:
+            inset 0 6px 0 rgba(255,255,255,0.30),
+            0 8px 0 #d95b61,
+            0 18px 28px rgba(112, 72, 44, 0.24);
+          text-shadow: 0 2px 0 rgba(174, 72, 77, 0.44);
+        }
+
+        .buttonPaw {
+          --paw-color: #fff8ec;
+          width: 28px;
+          height: 26px;
+          margin: 0 10px;
+          vertical-align: -4px;
+          filter: drop-shadow(0 2px 0 rgba(174, 72, 77, 0.34));
+        }
+
+        .primaryButton:disabled {
+          cursor: default;
+          opacity: 0.72;
+          transform: none;
         }
 
         .shareButton {
