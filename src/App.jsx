@@ -41,12 +41,73 @@ export default function App() {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
   const gameRef = useRef(null);
+  const audioAssetsRef = useRef(null);
 
   const [screen, setScreen] = useState("title");
   const [loading, setLoading] = useState(0);
   const [scoreView, setScoreView] = useState(0);
   const [livesView, setLivesView] = useState(catchGameConfig.startingLives);
   const [finalScore, setFinalScore] = useState(0);
+
+  const getAudioAssets = () => {
+    if (audioAssetsRef.current) return audioAssetsRef.current;
+
+    const createAudio = (src, options = {}) => {
+      if (!src) return null;
+
+      const audio = new Audio(src);
+      audio.preload = "auto";
+      audio.loop = Boolean(options.loop);
+      audio.volume = options.volume ?? 1;
+      return audio;
+    };
+
+    audioAssetsRef.current = {
+      catch: createAudio(assets.sounds.catch, { volume: 0.65 }),
+      miss: createAudio(assets.sounds.miss, { volume: 0.55 }),
+      damage: createAudio(assets.sounds.damage, { volume: 0.75 }),
+      bgm: createAudio(assets.sounds.bgm, { loop: true, volume: 0.34 }),
+    };
+
+    return audioAssetsRef.current;
+  };
+
+  const playAudio = (name) => {
+    const audio = getAudioAssets()[name];
+    if (!audio) return;
+
+    try {
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise) playPromise.catch(() => {});
+    } catch {
+      // Missing or unsupported replacement audio should never interrupt play.
+    }
+  };
+
+  const startBgm = () => {
+    const bgm = getAudioAssets().bgm;
+    if (!bgm || !bgm.paused) return;
+
+    try {
+      const playPromise = bgm.play();
+      if (playPromise) playPromise.catch(() => {});
+    } catch {
+      // Autoplay and unsupported sources fail silently by design here.
+    }
+  };
+
+  const stopBgm = () => {
+    const bgm = audioAssetsRef.current?.bgm;
+    if (!bgm) return;
+
+    try {
+      bgm.pause();
+      bgm.currentTime = 0;
+    } catch {
+      // Keep result/game transitions resilient if audio cleanup fails.
+    }
+  };
 
   useEffect(() => {
     if (screen !== "title") return;
@@ -76,10 +137,17 @@ export default function App() {
     const imageAssets = {
       background: new Image(),
       basket: new Image(),
+      items: assets.itemImages.map((src) => {
+        const image = new Image();
+        image.src = src;
+        return image;
+      }),
+      hazard: new Image(),
     };
 
     imageAssets.background.src = assets.background;
     imageAssets.basket.src = assets.basket;
+    imageAssets.hazard.src = assets.hazardImage;
 
     const isImageReady = (image) => image.complete && image.naturalWidth > 0;
 
@@ -165,17 +233,15 @@ export default function App() {
     const spawnFruit = (game) => {
       const size = 28 + Math.random() * 14;
       const isBomb = Math.random() < Math.min(0.28, 0.12 + game.elapsed * 0.003);
+      const itemIndex = Math.floor(Math.random() * catchGameConfig.itemIcons.length);
 
       game.fruits.push({
         x: size + Math.random() * Math.max(1, game.width - size * 2),
         y: -size,
         size,
         speed: 118 + game.elapsed * 5.8 + Math.random() * 66,
-        icon: isBomb
-          ? catchGameConfig.hazardIcon
-          : catchGameConfig.itemIcons[
-              Math.floor(Math.random() * catchGameConfig.itemIcons.length)
-            ],
+        icon: isBomb ? catchGameConfig.hazardIcon : catchGameConfig.itemIcons[itemIndex],
+        imageIndex: itemIndex,
         type: isBomb ? "bomb" : "fruit",
         spin: Math.random() * Math.PI * 2,
       });
@@ -233,6 +299,19 @@ export default function App() {
       ctx.save();
       ctx.translate(fruit.x, fruit.y);
       ctx.rotate(Math.sin(fruit.spin) * 0.18);
+
+      const itemImage =
+        fruit.type === "bomb"
+          ? imageAssets.hazard
+          : imageAssets.items[fruit.imageIndex % imageAssets.items.length];
+
+      if (itemImage && isImageReady(itemImage)) {
+        const drawSize = fruit.size * 1.28;
+        ctx.drawImage(itemImage, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+        ctx.restore();
+        return;
+      }
+
       ctx.font = `${fruit.size}px system-ui, Apple Color Emoji, Segoe UI Emoji`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -333,12 +412,14 @@ export default function App() {
 
         if (caught) {
           if (fruit.type === "bomb") {
+            playAudio("damage");
             game.lives -= 1;
             setLivesView(game.lives);
 
             if (game.lives <= 0) {
               game.lives = 0;
               setFinalScore(game.score);
+              stopBgm();
               setScreen("result");
             }
 
@@ -346,18 +427,21 @@ export default function App() {
           }
 
           game.score += catchGameConfig.pointsPerCatch;
+          playAudio("catch");
           setScoreView(game.score);
           return false;
         }
 
         if (fruit.y - fruit.size > game.height) {
           if (fruit.type !== "bomb") {
+            playAudio("miss");
             game.lives -= 1;
             setLivesView(game.lives);
 
             if (game.lives <= 0) {
               game.lives = 0;
               setFinalScore(game.score);
+              stopBgm();
               setScreen("result");
             }
           }
@@ -379,6 +463,7 @@ export default function App() {
 
     setScoreView(0);
     setLivesView(catchGameConfig.startingLives);
+    startBgm();
     resize();
 
     window.addEventListener("resize", resize);
@@ -395,6 +480,7 @@ export default function App() {
     rafRef.current = requestAnimationFrame(tick);
 
     return () => {
+      stopBgm();
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener("resize", resize);
 
@@ -410,6 +496,7 @@ export default function App() {
   }, [screen]);
 
   const startGame = () => {
+    getAudioAssets();
     setScoreView(0);
     setLivesView(catchGameConfig.startingLives);
     setFinalScore(0);
