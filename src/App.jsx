@@ -2,6 +2,41 @@ import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
 import { assets } from "./assetsConfig";
 
+const gameCopy = {
+  title: "minigame003",
+  titleLogoAlt: "minigame003",
+  titleFlavor: "DROP CATCH 003",
+  titleDescription: "落ちてくるアイテムをカゴでキャッチ",
+  titleBurst: "🍎 🍊 🍓",
+  resultBurst: "🍇 🍑 🍋",
+  loading: "Loading...",
+  startButton: "{gameCopy.startButton}",
+  resultTitle: "Result",
+  scoreLabel: "FINAL SCORE",
+  shareButton: "{gameCopy.shareButton}",
+  replayButton: "{gameCopy.replayButton}",
+  shareAltText: "minigame003 のスコアをシェア！",
+  shareScoreText: (score) => `minigame003で${score}点をとったよ！`,
+  shareSubtitle: "minigame003 - アイテムキャッチゲーム",
+  shareCta: "遊んでみる！",
+  shareAgain: "シェアする",
+  shareFooterLabel: "minigame003",
+  shareSuccess: "シェアしました！",
+  shareCancel: "シェアをキャンセルしました。",
+  shareError: "エラーが発生しました。",
+  shareUnavailable: "この環境ではシェア機能を利用できません。",
+};
+
+// Keep the current catch-game tuning here so minigame003 can move to new rules
+// without hunting through rendering, collision, and share UI code.
+const catchGameConfig = {
+  itemIcons: ["🍎", "🍊", "🍓", "🍇", "🍋", "🍑"],
+  hazardIcon: "💣",
+  startingLives: 3,
+  pointsPerCatch: 10,
+};
+
+
 export default function App() {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
@@ -10,7 +45,7 @@ export default function App() {
   const [screen, setScreen] = useState("title");
   const [loading, setLoading] = useState(0);
   const [scoreView, setScoreView] = useState(0);
-  const [livesView, setLivesView] = useState(3);
+  const [livesView, setLivesView] = useState(catchGameConfig.startingLives);
   const [finalScore, setFinalScore] = useState(0);
 
   useEffect(() => {
@@ -38,7 +73,6 @@ export default function App() {
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    const fruitIcons = ["🍎", "🍊", "🍓", "🍇", "🍋", "🍑"];
     const imageAssets = {
       background: new Image(),
       basket: new Image(),
@@ -64,7 +98,7 @@ export default function App() {
       width: 0,
       height: 0,
       score: 0,
-      lives: 3,
+      lives: catchGameConfig.startingLives,
       elapsed: 0,
       spawnTimer: 0,
       lastTime: performance.now(),
@@ -138,8 +172,10 @@ export default function App() {
         size,
         speed: 118 + game.elapsed * 5.8 + Math.random() * 66,
         icon: isBomb
-          ? "💣"
-          : fruitIcons[Math.floor(Math.random() * fruitIcons.length)],
+          ? catchGameConfig.hazardIcon
+          : catchGameConfig.itemIcons[
+              Math.floor(Math.random() * catchGameConfig.itemIcons.length)
+            ],
         type: isBomb ? "bomb" : "fruit",
         spin: Math.random() * Math.PI * 2,
       });
@@ -309,7 +345,7 @@ export default function App() {
             return false;
           }
 
-          game.score += 10;
+          game.score += catchGameConfig.pointsPerCatch;
           setScoreView(game.score);
           return false;
         }
@@ -342,7 +378,7 @@ export default function App() {
     };
 
     setScoreView(0);
-    setLivesView(3);
+    setLivesView(catchGameConfig.startingLives);
     resize();
 
     window.addEventListener("resize", resize);
@@ -375,7 +411,7 @@ export default function App() {
 
   const startGame = () => {
     setScoreView(0);
-    setLivesView(3);
+    setLivesView(catchGameConfig.startingLives);
     setFinalScore(0);
     setScreen("game");
   };
@@ -389,7 +425,7 @@ export default function App() {
         .shareTargetPicker([
           {
             type: "flex",
-            altText: "ゲームスコアをシェア！",
+            altText: gameCopy.shareAltText,
             contents: {
               type: "bubble",
               hero: {
@@ -409,7 +445,7 @@ export default function App() {
                     contents: [
                       {
                         type: "text",
-                        text: `ゲームで${score}点をとったよ！`,
+                        text: gameCopy.shareScoreText(score),
                         size: "lg",
                         color: "#000000",
                         weight: "bold",
@@ -424,7 +460,7 @@ export default function App() {
                     contents: [
                       {
                         type: "text",
-                        text: "手軽に遊べるミニゲーム",
+                        text: gameCopy.shareSubtitle,
                         size: "sm",
                         color: "#999999",
                         wrap: true,
@@ -440,7 +476,7 @@ export default function App() {
                         type: "button",
                         action: {
                           type: "uri",
-                          label: "遊んでみる！",
+                          label: gameCopy.shareCta,
                           uri: `https://miniapp.line.me/${liff.id}`,
                         },
                         style: "primary",
@@ -451,7 +487,7 @@ export default function App() {
                         type: "button",
                         action: {
                           type: "uri",
-                          label: "シェアする",
+                          label: gameCopy.shareAgain,
                           uri: `https://miniapp.line.me/${liff.id}/share`,
                         },
                         style: "link",
@@ -485,7 +521,7 @@ export default function App() {
                       },
                       {
                         type: "text",
-                        text: "ゲーム",
+                        text: gameCopy.shareFooterLabel,
                         flex: 19,
                         size: "xs",
                         color: "#999999",
@@ -517,17 +553,17 @@ export default function App() {
         ])
         .then((res) => {
           if (res) {
-            alert("シェアしました！");
+            alert(gameCopy.shareSuccess);
           } else {
-            alert("シェアをキャンセルしました。");
+            alert(gameCopy.shareCancel);
           }
         })
         .catch((error) => {
           console.error(error);
-          alert("エラーが発生しました。");
+          alert(gameCopy.shareError);
         });
     } else {
-      alert("この環境ではシェア機能を利用できません。");
+      alert(gameCopy.shareUnavailable);
     }
   };
 
@@ -536,9 +572,11 @@ export default function App() {
       <section className="phoneFrame">
         {screen === "title" && (
           <div className="panel titleScreen">
-            <img className="titleLogo" src={assets.titleLogo} alt="MINI GAMES" />
-            <div className="fruitBurst">🍎 🍊 🍓</div>
-            <p>落ちてくるフルーツをカゴでキャッチ</p>
+            <img className="titleLogo" src={assets.titleLogo} alt={gameCopy.titleLogoAlt} />
+            <h1 className="gameTitle">{gameCopy.title}</h1>
+            <div className="gameFlavor">{gameCopy.titleFlavor}</div>
+            <div className="fruitBurst">{gameCopy.titleBurst}</div>
+            <p>{gameCopy.titleDescription}</p>
 
             <div className="loadingTrack">
               <div className="loadingBar" style={{ width: `${loading}%` }} />
@@ -546,10 +584,10 @@ export default function App() {
 
             {loading >= 100 ? (
               <button className="primaryButton" type="button" onClick={startGame}>
-                タップしてスタート
+                {gameCopy.startButton}
               </button>
             ) : (
-              <div className="loadingText">Loading...</div>
+              <div className="loadingText">{gameCopy.loading}</div>
             )}
           </div>
         )}
@@ -565,17 +603,17 @@ export default function App() {
 
         {screen === "result" && (
           <div className="panel resultScreen">
-            <div className="fruitBurst">🍇 🍑 🍋</div>
-            <h1>Result</h1>
-            <p className="scoreLabel">FINAL SCORE</p>
+            <div className="fruitBurst">{gameCopy.resultBurst}</div>
+            <h1>{gameCopy.resultTitle}</h1>
+            <p className="scoreLabel">{gameCopy.scoreLabel}</p>
             <div className="finalScore">{finalScore}</div>
 
             <button className="shareButton" type="button" onClick={handleShare}>
-              シェアする！
+              {gameCopy.shareButton}
             </button>
 
             <button className="primaryButton" type="button" onClick={startGame}>
-              もう一度遊ぶ
+              {gameCopy.replayButton}
             </button>
           </div>
         )}
@@ -665,9 +703,27 @@ export default function App() {
         .titleLogo {
           width: min(92%, 390px);
           height: auto;
-          margin: 0 0 18px;
+          margin: 0 0 10px;
           display: block;
           filter: drop-shadow(0 12px 18px rgba(28, 35, 62, 0.22));
+        }
+
+
+        .gameTitle {
+          margin: 0;
+          color: #263253;
+          font-size: clamp(34px, 10vw, 54px);
+          line-height: 1;
+          letter-spacing: 0;
+          text-shadow: 0 4px 0 rgba(255,255,255,0.62);
+        }
+
+        .gameFlavor {
+          margin-top: 8px;
+          color: rgba(38,50,83,0.72);
+          font-size: 14px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
         }
 
         .fruitBurst {
