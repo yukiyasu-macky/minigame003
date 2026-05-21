@@ -967,7 +967,7 @@ export default function App() {
         .titleLogo {
           width: min(112%, 500px);
           height: auto;
-          margin: 44px 0 24px;
+          margin: 40px 0 18px;
           display: block;
           filter: drop-shadow(0 14px 12px rgba(94, 60, 38, 0.18));
         }
@@ -1078,11 +1078,11 @@ export default function App() {
         }
 
         .titleDescription {
-          width: min(360px, 94%);
+          width: min(318px, 86%);
           max-width: none;
-          min-height: 54px;
-          margin: 28px 0 24px;
-          padding: 13px 22px;
+          min-height: 48px;
+          margin: 24px 0 20px;
+          padding: 11px 18px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1092,9 +1092,9 @@ export default function App() {
           background: rgba(255, 247, 221, 0.94);
           box-shadow:
             inset 0 -4px 0 rgba(231, 177, 109, 0.20),
-            0 8px 0 rgba(196, 126, 84, 0.22),
-            0 16px 26px rgba(119, 82, 52, 0.15);
-          font-size: 17px;
+            0 6px 0 rgba(196, 126, 84, 0.18),
+            0 12px 20px rgba(119, 82, 52, 0.12);
+          font-size: 15px;
           font-weight: 900;
           line-height: 1.35;
         }
@@ -1106,24 +1106,24 @@ export default function App() {
 
         .inlinePaw {
           --paw-color: #f0908c;
-          width: 28px;
-          height: 26px;
-          margin: 0 8px;
-          transform: scale(0.82);
+          width: 24px;
+          height: 22px;
+          margin: 0 7px;
+          transform: scale(0.74);
         }
 
         .loadingTrack {
           position: relative;
-          width: min(374px, 92%);
-          height: 42px;
-          padding: 6px;
+          width: min(292px, 74%);
+          height: 28px;
+          padding: 4px;
           border: 3px solid #ffffff;
           border-radius: 999px;
           background: rgba(255, 250, 235, 0.94);
           box-shadow:
-            0 0 0 3px rgba(173, 116, 72, 0.5),
-            inset 0 4px 10px rgba(128, 86, 52, 0.12),
-            0 10px 18px rgba(112, 72, 44, 0.14);
+            0 0 0 2px rgba(173, 116, 72, 0.42),
+            inset 0 3px 8px rgba(128, 86, 52, 0.10),
+            0 6px 12px rgba(112, 72, 44, 0.10);
           overflow: hidden;
         }
 
@@ -1134,8 +1134,8 @@ export default function App() {
           min-width: 32px;
           background: #ff8d94;
           box-shadow:
-            inset 0 5px 0 rgba(255,255,255,0.38),
-            inset 0 -4px 0 rgba(218, 97, 100, 0.22);
+            inset 0 3px 0 rgba(255,255,255,0.34),
+            inset 0 -3px 0 rgba(218, 97, 100, 0.20);
           transition: width 160ms ease-out;
           overflow: hidden;
           z-index: 2;
@@ -1146,18 +1146,17 @@ export default function App() {
           position: absolute;
           inset: 0;
           background:
-            radial-gradient(circle at 18% 50%, rgba(255,255,255,0.24) 0 7px, transparent 8px),
-            radial-gradient(circle at 42% 50%, rgba(255,255,255,0.18) 0 7px, transparent 8px),
-            radial-gradient(circle at 66% 50%, rgba(255,255,255,0.18) 0 7px, transparent 8px),
-            radial-gradient(circle at 90% 50%, rgba(255,255,255,0.16) 0 7px, transparent 8px);
+            radial-gradient(circle at 24% 50%, rgba(255,255,255,0.18) 0 5px, transparent 6px),
+            radial-gradient(circle at 54% 50%, rgba(255,255,255,0.14) 0 5px, transparent 6px),
+            radial-gradient(circle at 84% 50%, rgba(255,255,255,0.12) 0 5px, transparent 6px);
         }
 
         .loadingPaw {
           position: absolute;
-          right: 6px;
+          right: 4px;
           top: 50%;
-          width: 30px;
-          height: 30px;
+          width: 22px;
+          height: 22px;
           display: grid;
           place-items: center;
           border-radius: 50%;
@@ -1168,9 +1167,9 @@ export default function App() {
         }
 
         .loadingPaw .pawMark {
-          width: 20px;
-          height: 18px;
-          transform: scale(0.66);
+          width: 16px;
+          height: 15px;
+          transform: scale(0.52);
         }
 
         .loadingPawTrail {
@@ -1185,18 +1184,18 @@ export default function App() {
 
         .loadingPawTrail .pawMark {
           --paw-color: rgba(119, 82, 52, 0.34);
-          width: 20px;
-          height: 18px;
-          transform: scale(0.58);
+          width: 16px;
+          height: 15px;
+          transform: scale(0.46);
         }
 
         .loadingText {
-          min-height: 34px;
-          margin: 8px 0 8px;
+          min-height: 26px;
+          margin: 2px 0 5px;
           display: flex;
           align-items: center;
           color: #6c3a24;
-          font-size: 20px;
+          font-size: 16px;
           font-weight: 900;
           letter-spacing: 0;
           text-shadow: 0 2px 0 rgba(255,255,255,0.78);
@@ -1209,9 +1208,14 @@ export default function App() {
           border: 0;
           border-radius: 999px;
           padding: 14px 26px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           color: #fff;
           font-size: 18px;
           font-weight: 900;
+          line-height: 1.1;
+          white-space: nowrap;
           touch-action: manipulation;
         }
 
@@ -1227,6 +1231,19 @@ export default function App() {
           text-shadow: 0 2px 0 rgba(174, 72, 77, 0.44);
         }
 
+        .titleScreen .primaryButton {
+          width: min(378px, 88%);
+          min-height: 70px;
+          margin-top: 4px;
+          border-width: 6px;
+          padding: 16px 20px;
+          font-size: clamp(20px, 5.6vw, 27px);
+          box-shadow:
+            inset 0 7px 0 rgba(255,255,255,0.30),
+            0 9px 0 #d95b61,
+            0 20px 30px rgba(112, 72, 44, 0.24);
+        }
+
         .buttonPaw {
           --paw-color: #fff8ec;
           width: 28px;
@@ -1234,6 +1251,13 @@ export default function App() {
           margin: 0 10px;
           vertical-align: -4px;
           filter: drop-shadow(0 2px 0 rgba(174, 72, 77, 0.34));
+        }
+
+        .titleScreen .buttonPaw {
+          width: 28px;
+          height: 26px;
+          margin: 0 9px;
+          vertical-align: -4px;
         }
 
         .primaryButton:disabled {
