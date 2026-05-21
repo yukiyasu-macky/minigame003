@@ -295,10 +295,10 @@ export default function App() {
 
       game.width = rect.width;
       game.height = rect.height;
-      game.basket.width = Math.min(92, rect.width * 0.26);
-      game.basket.height = Math.max(32, rect.height * 0.044);
+      game.basket.width = Math.min(82, rect.width * 0.23);
+      game.basket.height = Math.max(28, rect.height * 0.04);
       game.basket.x = rect.width / 2;
-      game.basket.y = rect.height - Math.max(96, rect.height * 0.13);
+      game.basket.y = rect.height - Math.max(72, rect.height * 0.095);
     };
 
     const moveBasketTo = (clientX) => {
@@ -362,11 +362,7 @@ export default function App() {
     };
 
     const drawBackground = (game) => {
-      const gradient = ctx.createLinearGradient(0, 0, 0, game.height);
-      gradient.addColorStop(0, "#72ddff");
-      gradient.addColorStop(0.55, "#fff0a6");
-      gradient.addColorStop(1, "#91f1a4");
-      ctx.fillStyle = gradient;
+      ctx.fillStyle = "#f7e0c5";
       ctx.fillRect(0, 0, game.width, game.height);
 
       if (isImageReady(imageAssets.background)) {
@@ -378,35 +374,41 @@ export default function App() {
         const y = (game.height - height) / 2;
 
         ctx.save();
-        ctx.globalAlpha = 0.24;
         ctx.drawImage(image, x, y, width, height);
         ctx.restore();
       }
 
-      ctx.fillStyle = "rgba(255,255,255,0.52)";
-      for (let i = 0; i < 7; i += 1) {
-        const x = ((i * 120 + game.elapsed * 12) % (game.width + 160)) - 80;
-        const y = 68 + i * 44;
-        ctx.beginPath();
-        ctx.ellipse(x, y, 34, 13, 0, 0, Math.PI * 2);
-        ctx.ellipse(x + 27, y + 4, 28, 11, 0, 0, Math.PI * 2);
-        ctx.ellipse(x - 25, y + 5, 23, 10, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      ctx.fillStyle = "rgba(255, 248, 240, 0.16)";
+      ctx.fillRect(0, 0, game.width, game.height);
     };
 
     const drawHud = (game) => {
-      ctx.fillStyle = "rgba(255,255,255,0.88)";
-      roundedRect(20, 24, game.width - 40, 52, 18);
+      const top = 18;
+      const scoreText = `${game.score}`;
+      const lifeText = "♥".repeat(game.lives);
+
+      ctx.fillStyle = "rgba(255, 248, 240, 0.86)";
+      roundedRect(18, top, 108, 36, 18);
       ctx.fill();
 
-      ctx.fillStyle = "#263253";
-      ctx.font = "700 18px system-ui, sans-serif";
+      ctx.fillStyle = "rgba(113, 70, 47, 0.72)";
+      ctx.font = "800 10px system-ui, sans-serif";
       ctx.textBaseline = "middle";
       ctx.textAlign = "left";
-      ctx.fillText(`SCORE ${game.score}`, 38, 50);
-      ctx.textAlign = "right";
-      ctx.fillText(`LIFE ${"♥".repeat(game.lives)}`, game.width - 38, 50);
+      ctx.fillText("SCORE", 32, top + 18);
+
+      ctx.fillStyle = "#71462f";
+      ctx.font = "900 18px system-ui, sans-serif";
+      ctx.fillText(scoreText, 75, top + 18);
+
+      ctx.fillStyle = "rgba(255, 248, 240, 0.86)";
+      roundedRect(game.width - 104, top, 86, 36, 18);
+      ctx.fill();
+
+      ctx.fillStyle = "#f2938d";
+      ctx.font = "900 17px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(lifeText, game.width - 61, top + 18);
     };
 
     const drawFruit = (fruit) => {
@@ -441,7 +443,7 @@ export default function App() {
 
       if (isImageReady(imageAssets.basket)) {
         const image = imageAssets.basket;
-        const imageWidth = basket.width * 1.18;
+        const imageWidth = basket.width * 1.04;
         const imageHeight = Math.max(basket.height * 1.9, imageWidth * (image.naturalHeight / image.naturalWidth));
 
         ctx.drawImage(
@@ -484,15 +486,15 @@ export default function App() {
     };
 
     const drawAdSpace = (game) => {
-      ctx.fillStyle = "rgba(255,255,255,0.42)";
-      roundedRect(22, game.height - 72, game.width - 44, 44, 14);
+      ctx.fillStyle = "rgba(255, 248, 240, 0.46)";
+      roundedRect(game.width / 2 - 46, 62, 92, 22, 11);
       ctx.fill();
 
-      ctx.fillStyle = "rgba(38,50,83,0.42)";
-      ctx.font = "600 12px system-ui, sans-serif";
+      ctx.fillStyle = "rgba(113, 70, 47, 0.42)";
+      ctx.font = "700 10px system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("AD SPACE", game.width / 2, game.height - 50);
+      ctx.fillText("AD SPACE", game.width / 2, 73);
     };
 
     const tick = (now) => {
