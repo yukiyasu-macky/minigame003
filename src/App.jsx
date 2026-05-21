@@ -38,8 +38,21 @@ const catchGameConfig = {
   pointsPerCatch: 10,
   pointsPerRareCatch: 30,
   rareChance: 0.1,
+  adBannerReservedHeight: 100,
+  adBannerMinHeight: 80,
+  adBannerMaxHeight: 120,
+  basketScale: 1.2,
+  itemScale: 1.24,
 };
 
+const getAdBannerReservedHeight = (screenHeight) =>
+  Math.min(
+    catchGameConfig.adBannerMaxHeight,
+    Math.max(catchGameConfig.adBannerMinHeight, screenHeight * 0.12)
+  );
+
+const uiFontFamily =
+  '"Hiragino Maru Gothic ProN", "Yu Gothic", "Yu Gothic UI", "M PLUS Rounded 1c", system-ui, sans-serif';
 
 export default function App() {
   const canvasRef = useRef(null);
@@ -295,10 +308,23 @@ export default function App() {
 
       game.width = rect.width;
       game.height = rect.height;
-      game.basket.width = Math.min(82, rect.width * 0.23);
-      game.basket.height = Math.max(28, rect.height * 0.04);
+      const adBannerReservedHeight = getAdBannerReservedHeight(rect.height);
+      const basketBottomGap = Math.max(18, rect.height * 0.026);
+      const basketWidth = Math.min(82 * catchGameConfig.basketScale, rect.width * 0.23 * catchGameConfig.basketScale);
+      const basketHeight = Math.max(28 * catchGameConfig.basketScale, rect.height * 0.04 * catchGameConfig.basketScale);
+      const basketImageRatio = isImageReady(imageAssets.basket)
+        ? imageAssets.basket.naturalHeight / imageAssets.basket.naturalWidth
+        : 380 / 640;
+      const basketVisualHeight = Math.max(
+        basketHeight * 1.9,
+        basketWidth * 1.04 * basketImageRatio
+      );
+
+      game.basket.width = basketWidth;
+      game.basket.height = basketHeight;
       game.basket.x = rect.width / 2;
-      game.basket.y = rect.height - Math.max(72, rect.height * 0.095);
+      game.basket.y =
+        rect.height - adBannerReservedHeight - basketVisualHeight / 2 - basketBottomGap;
     };
 
     const moveBasketTo = (clientX) => {
@@ -339,7 +365,7 @@ export default function App() {
     };
 
     const spawnFruit = (game) => {
-      const size = 28 + Math.random() * 14;
+      const size = (28 + Math.random() * 14) * catchGameConfig.itemScale;
       const isBomb = Math.random() < Math.min(0.28, 0.12 + game.elapsed * 0.003);
       const isRare = !isBomb && Math.random() < catchGameConfig.rareChance;
       const itemIndex = Math.floor(Math.random() * catchGameConfig.itemIcons.length);
@@ -392,13 +418,13 @@ export default function App() {
       ctx.fill();
 
       ctx.fillStyle = "rgba(113, 70, 47, 0.72)";
-      ctx.font = "800 10px system-ui, sans-serif";
+      ctx.font = `800 10px ${uiFontFamily}`;
       ctx.textBaseline = "middle";
       ctx.textAlign = "left";
       ctx.fillText("SCORE", 32, top + 18);
 
       ctx.fillStyle = "#71462f";
-      ctx.font = "900 18px system-ui, sans-serif";
+      ctx.font = `900 18px ${uiFontFamily}`;
       ctx.fillText(scoreText, 75, top + 18);
 
       ctx.fillStyle = "rgba(255, 248, 240, 0.86)";
@@ -406,7 +432,7 @@ export default function App() {
       ctx.fill();
 
       ctx.fillStyle = "#f2938d";
-      ctx.font = "900 17px system-ui, sans-serif";
+      ctx.font = `900 17px ${uiFontFamily}`;
       ctx.textAlign = "center";
       ctx.fillText(lifeText, game.width - 61, top + 18);
     };
@@ -483,18 +509,6 @@ export default function App() {
       }
 
       ctx.restore();
-    };
-
-    const drawAdSpace = (game) => {
-      ctx.fillStyle = "rgba(255, 248, 240, 0.46)";
-      roundedRect(game.width / 2 - 46, 62, 92, 22, 11);
-      ctx.fill();
-
-      ctx.fillStyle = "rgba(113, 70, 47, 0.42)";
-      ctx.font = "700 10px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("AD SPACE", game.width / 2, 73);
     };
 
     const tick = (now) => {
@@ -574,10 +588,9 @@ export default function App() {
       });
 
       drawBackground(game);
-      game.fruits.forEach(drawFruit);
       drawBasket(game.basket);
+      game.fruits.forEach(drawFruit);
       drawHud(game);
-      drawAdSpace(game);
 
       if (game.lives > 0) rafRef.current = requestAnimationFrame(tick);
     };
@@ -855,11 +868,13 @@ export default function App() {
             <button className="shareButton resultButton" type="button" onClick={handleShare}>
               <span className="buttonPaw" aria-hidden="true">🐾</span>
               {gameCopy.shareButton}
+              <span className="buttonPaw" aria-hidden="true">🐾</span>
             </button>
 
             <button className="primaryButton resultButton" type="button" onClick={startGame}>
               <span className="buttonPaw" aria-hidden="true">🐾</span>
               {gameCopy.replayButton}
+              <span className="buttonPaw" aria-hidden="true">🐾</span>
             </button>
           </div>
         )}
@@ -874,6 +889,7 @@ export default function App() {
           overscroll-behavior: none;
           touch-action: none;
           background: #74e7c2;
+          font-family: ${uiFontFamily};
         }
 
         * {
@@ -906,6 +922,7 @@ export default function App() {
         }
 
         .phoneFrame {
+          --ad-banner-reserved-height: ${catchGameConfig.adBannerReservedHeight}px;
           position: relative;
           width: min(100%, calc((100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px) * 9 / 16));
           height: min(100%, calc(100vw * 16 / 9));
@@ -929,7 +946,7 @@ export default function App() {
         .panel {
           width: 100%;
           height: 100%;
-          padding: 72px 26px 96px;
+          padding: 72px 26px calc(var(--ad-banner-reserved-height) + 24px);
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -944,7 +961,10 @@ export default function App() {
         .titleScreen {
           position: relative;
           justify-content: flex-start;
-          padding: max(30px, calc(env(safe-area-inset-top) + 26px)) 22px 34px;
+          padding:
+            max(30px, calc(env(safe-area-inset-top) + 26px))
+            22px
+            calc(var(--ad-banner-reserved-height) + 24px);
           background:
             linear-gradient(180deg, rgba(255,243,230,0.58), rgba(255,236,202,0.62)),
             url("${assets.background}") center / cover no-repeat,
@@ -1289,8 +1309,8 @@ export default function App() {
 
         .resultScreen {
           justify-content: flex-start;
-          gap: 14px;
-          padding: 30px 24px 34px;
+          gap: 10px;
+          padding: 26px 24px calc(var(--ad-banner-reserved-height) + 18px);
           background:
             linear-gradient(180deg, rgba(255, 248, 240, 0.62), rgba(224, 184, 139, 0.58)),
             url("${assets.background}") center / cover no-repeat,
@@ -1298,17 +1318,17 @@ export default function App() {
         }
 
         .resultLogo {
-          width: min(318px, 82%);
+          width: min(250px, 72%);
           height: auto;
-          margin: 10px 0 0;
+          margin: 4px 0 0;
           object-fit: contain;
           filter: drop-shadow(0 5px 6px rgba(108, 74, 48, 0.14));
         }
 
         .resultCard {
           position: relative;
-          width: min(314px, 88%);
-          padding: 28px 24px 26px;
+          width: min(294px, 88%);
+          padding: 22px 20px 20px;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -1324,22 +1344,22 @@ export default function App() {
         .resultCard::before {
           content: "";
           position: absolute;
-          inset: 14px;
+          inset: 11px;
           border: 2px dashed rgba(230, 190, 151, 0.78);
-          border-radius: 22px;
+          border-radius: 20px;
           pointer-events: none;
         }
 
         .resultTitle {
           position: relative;
           z-index: 1;
-          margin: 0 0 18px;
+          margin: 0 0 14px;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 10px;
           color: #8d6f63;
-          font-size: clamp(30px, 9vw, 40px);
+          font-size: clamp(28px, 8vw, 36px);
           font-weight: 1000;
           line-height: 1;
           letter-spacing: 0;
@@ -1356,8 +1376,8 @@ export default function App() {
         .scoreLabel {
           position: relative;
           z-index: 1;
-          margin: 0 0 14px;
-          padding: 8px 18px;
+          margin: 0 0 10px;
+          padding: 7px 16px;
           border: 2px solid rgba(231, 202, 171, 0.86);
           border-radius: 999px;
           color: #8d6f63;
@@ -1370,8 +1390,8 @@ export default function App() {
         .scoreBox {
           position: relative;
           z-index: 1;
-          min-height: 86px;
-          margin: 0 0 16px;
+          min-height: 72px;
+          margin: 0 0 12px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1380,16 +1400,16 @@ export default function App() {
         .finalScore {
           margin: 0 7px 0 0;
           color: #8d6f63;
-          font-size: clamp(58px, 17vw, 82px);
+          font-size: clamp(52px, 15vw, 70px);
           font-weight: 1000;
           line-height: 1;
           text-shadow: 0 3px 0 rgba(255,255,255,0.95);
         }
 
         .scoreUnit {
-          margin-top: 24px;
+          margin-top: 20px;
           color: #8d6f63;
-          font-size: 25px;
+          font-size: 22px;
           font-weight: 1000;
           line-height: 1;
         }
@@ -1416,17 +1436,18 @@ export default function App() {
 
         .resultButton {
           width: min(280px, 82%);
-          min-height: 52px;
+          min-height: 48px;
           margin-top: 0;
           border: 3px solid #fff8ec;
           border-radius: 999px;
+          gap: 8px;
           font-size: 18px;
           color: #ffffff;
           text-shadow: 0 2px 0 rgba(105, 83, 68, 0.25);
         }
 
         .resultButton .buttonPaw {
-          margin-right: 10px;
+          margin: 0;
           color: #ffffff;
           font-size: 22px;
           line-height: 1;
