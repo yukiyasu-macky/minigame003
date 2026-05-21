@@ -831,24 +831,34 @@ export default function App() {
 
         {screen === "result" && (
           <div className="panel resultScreen">
+            <img className="resultLogo" src={assets.titleLogo} alt={gameCopy.titleLogoAlt} />
+
             <section className="resultCard" aria-label={gameCopy.resultTitle}>
-              <img className="resultCat" src={assets.itemImages[0]} alt="" aria-hidden="true" />
-              <h1 className="resultTitle">{gameCopy.resultTitle}</h1>
+              <h1 className="resultTitle">
+                <span className="resultPaw" aria-hidden="true">🐾</span>
+                {gameCopy.resultTitle}
+                <span className="resultPaw" aria-hidden="true">🐾</span>
+              </h1>
               <p className="scoreLabel">{gameCopy.scoreLabel}</p>
               <div className="scoreBox">
                 <span className="finalScore">{finalScore}</span>
                 <span className="scoreUnit">pt</span>
               </div>
-              <p className="resultMessage">{gameCopy.resultMessage}</p>
-
-              <button className="shareButton resultButton" type="button" onClick={handleShare}>
-                {gameCopy.shareButton}
-              </button>
-
-              <button className="primaryButton resultButton" type="button" onClick={startGame}>
-                {gameCopy.replayButton}
-              </button>
+              <p className="resultMessage">
+                <img className="resultCat" src={assets.itemImages[0]} alt="" aria-hidden="true" />
+                {gameCopy.resultMessage}
+              </p>
             </section>
+
+            <button className="shareButton resultButton" type="button" onClick={handleShare}>
+              <span className="buttonPaw" aria-hidden="true">🐾</span>
+              {gameCopy.shareButton}
+            </button>
+
+            <button className="primaryButton resultButton" type="button" onClick={startGame}>
+              <span className="buttonPaw" aria-hidden="true">🐾</span>
+              {gameCopy.replayButton}
+            </button>
           </div>
         )}
       </section>
@@ -1252,133 +1262,165 @@ export default function App() {
         }
 
         .resultScreen {
-          justify-content: center;
-          padding: 42px 24px;
+          justify-content: flex-start;
+          gap: 14px;
+          padding: 30px 24px 34px;
           background:
-            linear-gradient(180deg, rgba(255, 244, 229, 0.70), rgba(224, 184, 139, 0.66)),
+            linear-gradient(180deg, rgba(255, 248, 240, 0.62), rgba(224, 184, 139, 0.58)),
             url("${assets.background}") center / cover no-repeat,
             #f7e0c5;
         }
 
+        .resultLogo {
+          width: min(318px, 82%);
+          height: auto;
+          margin: 10px 0 0;
+          object-fit: contain;
+          filter: drop-shadow(0 5px 6px rgba(108, 74, 48, 0.14));
+        }
+
         .resultCard {
-          width: min(350px, 92%);
-          padding: 28px 24px 30px;
+          position: relative;
+          width: min(314px, 88%);
+          padding: 28px 24px 26px;
           display: flex;
           flex-direction: column;
           align-items: center;
-          border: 4px solid rgba(255,255,255,0.9);
-          border-radius: 32px;
+          border: 3px solid rgba(255,255,255,0.95);
+          border-radius: 28px;
           color: #71462f;
-          background: rgba(255, 250, 235, 0.94);
+          background: rgba(255, 248, 240, 0.94);
           box-shadow:
-            inset 0 0 0 3px rgba(174, 112, 72, 0.34),
-            0 10px 0 rgba(156, 94, 54, 0.20),
-            0 22px 36px rgba(92, 60, 40, 0.22);
+            0 3px 0 rgba(174, 112, 72, 0.14),
+            0 16px 28px rgba(92, 60, 40, 0.16);
         }
 
-        .resultCat {
-          width: 112px;
-          height: 86px;
-          object-fit: contain;
-          margin: -8px 0 4px;
-          filter: drop-shadow(0 6px 7px rgba(104, 68, 46, 0.16));
+        .resultCard::before {
+          content: "";
+          position: absolute;
+          inset: 14px;
+          border: 2px dashed rgba(230, 190, 151, 0.78);
+          border-radius: 22px;
+          pointer-events: none;
         }
 
         .resultTitle {
-          margin: 0 0 16px;
-          color: #d99575;
-          font-size: clamp(54px, 15vw, 74px);
+          position: relative;
+          z-index: 1;
+          margin: 0 0 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          color: #8d6f63;
+          font-size: clamp(30px, 9vw, 40px);
           font-weight: 1000;
           line-height: 1;
           letter-spacing: 0;
           white-space: nowrap;
-          -webkit-text-stroke: 7px #ffffff;
-          paint-order: stroke fill;
-          text-shadow:
-            0 5px 0 #8a5438,
-            0 10px 12px rgba(104, 68, 46, 0.16);
+          text-shadow: 0 2px 0 #ffffff;
+        }
+
+        .resultPaw {
+          color: #ed9c98;
+          font-size: 18px;
+          text-shadow: 0 1px 0 #ffffff;
         }
 
         .scoreLabel {
-          min-width: min(270px, 92%);
+          position: relative;
+          z-index: 1;
           margin: 0 0 14px;
-          padding: 9px 18px;
-          border-radius: 10px;
-          color: #fffaf2;
-          background: #e88484;
-          box-shadow:
-            inset 0 4px 0 rgba(255,255,255,0.20),
-            0 5px 0 rgba(163, 86, 73, 0.20);
-          font-size: 20px;
+          padding: 8px 18px;
+          border: 2px solid rgba(231, 202, 171, 0.86);
+          border-radius: 999px;
+          color: #8d6f63;
+          background: rgba(255, 250, 243, 0.92);
+          font-size: 15px;
           font-weight: 900;
           line-height: 1;
         }
 
         .scoreBox {
-          width: min(286px, 94%);
-          min-height: 122px;
-          margin: 0 0 12px;
+          position: relative;
+          z-index: 1;
+          min-height: 86px;
+          margin: 0 0 16px;
           display: flex;
           align-items: center;
           justify-content: center;
-          border: 4px solid rgba(239, 205, 148, 0.86);
-          border-radius: 28px;
-          background: rgba(255, 231, 166, 0.86);
-          box-shadow: 0 10px 18px rgba(137, 91, 54, 0.12);
         }
 
         .finalScore {
-          margin: 0 8px 0 0;
-          color: #e58b86;
-          font-size: clamp(72px, 22vw, 112px);
+          margin: 0 7px 0 0;
+          color: #8d6f63;
+          font-size: clamp(58px, 17vw, 82px);
           font-weight: 1000;
           line-height: 1;
-          -webkit-text-stroke: 7px #ffffff;
-          paint-order: stroke fill;
-          text-shadow:
-            0 5px 0 #89563d,
-            0 12px 14px rgba(101, 64, 41, 0.14);
+          text-shadow: 0 3px 0 rgba(255,255,255,0.95);
         }
 
         .scoreUnit {
-          margin-top: 30px;
-          color: #89563d;
-          font-size: 30px;
+          margin-top: 24px;
+          color: #8d6f63;
+          font-size: 25px;
           font-weight: 1000;
           line-height: 1;
         }
 
         .resultMessage {
-          margin: 0 0 14px;
-          color: rgba(113, 70, 47, 0.72);
-          font-size: 15px;
+          position: relative;
+          z-index: 1;
+          margin: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          color: rgba(113, 70, 47, 0.76);
+          font-size: 14px;
           font-weight: 900;
         }
 
+        .resultCat {
+          width: 28px;
+          height: 24px;
+          object-fit: contain;
+          filter: drop-shadow(0 2px 2px rgba(104, 68, 46, 0.12));
+        }
+
         .resultButton {
-          width: min(286px, 92%);
-          min-height: 58px;
-          margin-top: 12px;
-          border: 4px solid #fff8ec;
+          width: min(280px, 82%);
+          min-height: 52px;
+          margin-top: 0;
+          border: 3px solid #fff8ec;
+          border-radius: 999px;
+          font-size: 18px;
+          color: #ffffff;
+          text-shadow: 0 2px 0 rgba(105, 83, 68, 0.25);
+        }
+
+        .resultButton .buttonPaw {
+          margin-right: 10px;
+          color: #ffffff;
           font-size: 22px;
-          -webkit-text-stroke: 4px rgba(93, 89, 75, 0.50);
-          paint-order: stroke fill;
+          line-height: 1;
+          text-shadow: 0 2px 0 rgba(105, 83, 68, 0.18);
         }
 
         .resultButton.shareButton {
           background: #8fc79b;
           box-shadow:
-            inset 0 6px 0 rgba(255,255,255,0.26),
-            0 7px 0 #669e72,
-            0 15px 22px rgba(83, 92, 60, 0.18);
+            inset 0 4px 0 rgba(255,255,255,0.22),
+            0 5px 0 #6aaa7b,
+            0 10px 16px rgba(83, 92, 60, 0.15);
         }
 
         .resultButton.primaryButton {
           background: #f2938d;
           box-shadow:
-            inset 0 6px 0 rgba(255,255,255,0.26),
-            0 7px 0 #cf706b,
-            0 15px 22px rgba(113, 69, 55, 0.18);
+            inset 0 4px 0 rgba(255,255,255,0.24),
+            0 5px 0 #d57675,
+            0 10px 16px rgba(113, 69, 55, 0.15);
         }
 
         .srOnly {
