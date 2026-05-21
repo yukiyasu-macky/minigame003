@@ -1208,9 +1208,14 @@ export default function App() {
           border: 0;
           border-radius: 999px;
           padding: 14px 26px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           color: #fff;
           font-size: 18px;
           font-weight: 900;
+          line-height: 1.1;
+          white-space: nowrap;
           touch-action: manipulation;
         }
 
@@ -1228,11 +1233,11 @@ export default function App() {
 
         .titleScreen .primaryButton {
           width: min(378px, 88%);
-          min-height: 74px;
+          min-height: 70px;
           margin-top: 4px;
           border-width: 6px;
-          padding: 17px 26px;
-          font-size: clamp(23px, 6.6vw, 31px);
+          padding: 16px 20px;
+          font-size: clamp(20px, 5.6vw, 27px);
           box-shadow:
             inset 0 7px 0 rgba(255,255,255,0.30),
             0 9px 0 #d95b61,
@@ -1249,10 +1254,10 @@ export default function App() {
         }
 
         .titleScreen .buttonPaw {
-          width: 34px;
-          height: 32px;
-          margin: 0 12px;
-          vertical-align: -6px;
+          width: 28px;
+          height: 26px;
+          margin: 0 9px;
+          vertical-align: -4px;
         }
 
         .primaryButton:disabled {
