@@ -44,6 +44,8 @@ const catchGameConfig = {
   adBannerMaxHeight: 120,
   basketScale: 1.2,
   itemScale: 1.24,
+  startEffectSeconds: 0.72,
+  finishEffectSeconds: 0.64,
 };
 
 const getAdBannerReservedHeight = (screenHeight) =>
@@ -263,6 +265,10 @@ export default function App() {
       ctx.closePath();
     };
 
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const easeOut = (value) => 1 - Math.pow(1 - clamp(value, 0, 1), 3);
+    const easeInOut = (value) => 0.5 - Math.cos(clamp(value, 0, 1) * Math.PI) / 2;
+
     const createGame = () => ({
       width: 0,
       height: 0,
@@ -272,10 +278,21 @@ export default function App() {
       spawnTimer: 0,
       lastTime: performance.now(),
       fruits: [],
+      effects: [],
+      scorePulse: 0,
+      basketPulse: 0,
+      basketShake: 0,
+      screenShake: 0,
+      warmFlash: 0,
+      dangerFlash: 0,
+      startBanner: catchGameConfig.startEffectSeconds,
+      finishBanner: 0,
+      isEnding: false,
       basket: { x: 0, y: 0, width: 92, height: 34 },
     });
 
     gameRef.current = createGame();
+    let finishTimeoutId = null;
 
     const resize = () => {
       const game = gameRef.current;
@@ -367,6 +384,123 @@ export default function App() {
       });
     };
 
+    const addTextEffect = (game, x, y, text, options = {}) => {
+      const safeBottomY = game.height - getAdBannerReservedHeight(game.height) - 28;
+      game.effects.push({
+        kind: "text",
+        x: clamp(x, 46, game.width - 46),
+        y: clamp(y, 64, safeBottomY),
+        text,
+        age: 0,
+        duration: options.duration ?? 0.46,
+        size: options.size ?? 22,
+        color: options.color ?? "#ff8f73",
+        stroke: options.stroke ?? "#ffffff",
+      });
+    };
+
+    const addSparkleEffects = (game, x, y, options = {}) => {
+      const count = options.count ?? 5;
+      const colors = options.colors ?? ["#fff4a8", "#ffb2a3", "#8fe8d1"];
+
+      for (let index = 0; index < count; index += 1) {
+        const angle = (Math.PI * 2 * index) / count + Math.random() * 0.55;
+        const speed = (options.speed ?? 42) + Math.random() * 26;
+
+        game.effects.push({
+          kind: "sparkle",
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 18,
+          age: 0,
+          duration: options.duration ?? 0.42,
+          size: (options.size ?? 4.8) + Math.random() * 2.4,
+          color: colors[index % colors.length],
+        });
+      }
+    };
+
+    const playCatchEffect = (game, fruit) => {
+      const isRare = fruit.type === "rare";
+      const points = isRare
+        ? catchGameConfig.pointsPerRareCatch
+        : catchGameConfig.pointsPerCatch;
+
+      game.basketPulse = 0.28;
+      game.scorePulse = 0.32;
+      addTextEffect(game, fruit.x, fruit.y - fruit.size * 0.36, `+${points}`, {
+        size: isRare ? 28 : 22,
+        color: isRare ? "#ffb84f" : "#ff8f73",
+        duration: isRare ? 0.58 : 0.42,
+      });
+      addSparkleEffects(game, fruit.x, fruit.y, {
+        count: isRare ? 10 : 5,
+        size: isRare ? 6 : 4.6,
+        speed: isRare ? 56 : 38,
+        duration: isRare ? 0.58 : 0.4,
+        colors: isRare
+          ? ["#fff176", "#ffb3d1", "#9ff4df", "#b7d8ff"]
+          : ["#fff4a8", "#ffb2a3", "#8fe8d1"],
+      });
+
+      if (isRare) {
+        game.warmFlash = 0.18;
+        addTextEffect(game, fruit.x, fruit.y - fruit.size * 1.1, "RARE!", {
+          size: 20,
+          color: "#ffaf34",
+          duration: 0.58,
+        });
+      }
+    };
+
+    const playMissEffect = (game, x, y) => {
+      game.basketShake = 0.28;
+      game.screenShake = 0.18;
+      game.dangerFlash = 0.16;
+      addTextEffect(game, x, y, "MISS!", {
+        size: 20,
+        color: "#f17878",
+        duration: 0.42,
+      });
+    };
+
+    const finishGame = (game) => {
+      if (game.isEnding) return;
+
+      game.isEnding = true;
+      game.finishBanner = catchGameConfig.finishEffectSeconds;
+      setFinalScore(game.score);
+      playSound("gameover");
+      stopBgm();
+
+      finishTimeoutId = window.setTimeout(() => {
+        if (gameRef.current === game) setScreen("result");
+      }, catchGameConfig.finishEffectSeconds * 1000);
+    };
+
+    const updateEffects = (game, delta) => {
+      game.scorePulse = Math.max(0, game.scorePulse - delta);
+      game.basketPulse = Math.max(0, game.basketPulse - delta);
+      game.basketShake = Math.max(0, game.basketShake - delta);
+      game.screenShake = Math.max(0, game.screenShake - delta);
+      game.warmFlash = Math.max(0, game.warmFlash - delta);
+      game.dangerFlash = Math.max(0, game.dangerFlash - delta);
+      game.startBanner = Math.max(0, game.startBanner - delta);
+      game.finishBanner = Math.max(0, game.finishBanner - delta);
+
+      game.effects = game.effects.filter((effect) => {
+        effect.age += delta;
+        if (effect.kind === "sparkle") {
+          effect.x += effect.vx * delta;
+          effect.y += effect.vy * delta;
+          effect.vy += 90 * delta;
+        }
+
+        return effect.age < effect.duration;
+      });
+    };
+
     const drawBackground = (game) => {
       ctx.fillStyle = "#f7e0c5";
       ctx.fillRect(0, 0, game.width, game.height);
@@ -392,10 +526,17 @@ export default function App() {
       const top = 18;
       const scoreText = `${game.score}`;
       const lifeText = "♥".repeat(game.lives);
+      const scorePop = Math.sin((game.scorePulse / 0.32) * Math.PI) * 0.1;
 
       ctx.fillStyle = "rgba(255, 248, 240, 0.86)";
-      roundedRect(18, top, 108, 36, 18);
+      roundedRect(18, top - scorePop * 2, 108 + scorePop * 8, 36 + scorePop * 4, 18);
       ctx.fill();
+
+      if (game.scorePulse > 0) {
+        ctx.fillStyle = `rgba(255, 231, 143, ${0.22 * (game.scorePulse / 0.32)})`;
+        roundedRect(22, top + 4, 96, 10, 8);
+        ctx.fill();
+      }
 
       ctx.fillStyle = "rgba(113, 70, 47, 0.72)";
       ctx.font = `800 10px ${uiFontFamily}`;
@@ -404,7 +545,7 @@ export default function App() {
       ctx.fillText("SCORE", 32, top + 18);
 
       ctx.fillStyle = "#71462f";
-      ctx.font = `900 18px ${uiFontFamily}`;
+      ctx.font = `900 ${18 + scorePop * 18}px ${uiFontFamily}`;
       ctx.fillText(scoreText, 75, top + 18);
 
       ctx.fillStyle = "rgba(255, 248, 240, 0.86)";
@@ -444,8 +585,15 @@ export default function App() {
     };
 
     const drawBasket = (basket) => {
+      const game = gameRef.current;
+      const pulse = game ? Math.sin((game.basketPulse / 0.28) * Math.PI) : 0;
+      const shake = game
+        ? Math.sin(game.basketShake * 92) * 5.5 * (game.basketShake / 0.28)
+        : 0;
+
       ctx.save();
-      ctx.translate(basket.x, basket.y);
+      ctx.translate(basket.x + shake, basket.y);
+      ctx.scale(1 + pulse * 0.08, 1 - pulse * 0.045);
 
       if (isImageReady(imageAssets.basket)) {
         const image = imageAssets.basket;
@@ -491,16 +639,112 @@ export default function App() {
       ctx.restore();
     };
 
+    const drawEffects = (game) => {
+      game.effects.forEach((effect) => {
+        const progress = clamp(effect.age / effect.duration, 0, 1);
+        const alpha = 1 - easeInOut(progress);
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        if (effect.kind === "text") {
+          const lift = easeOut(progress) * 34;
+          const scale = 0.82 + Math.sin(progress * Math.PI) * 0.18;
+
+          ctx.translate(effect.x, effect.y - lift);
+          ctx.scale(scale, scale);
+          ctx.font = `900 ${effect.size}px ${uiFontFamily}`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = effect.stroke;
+          ctx.fillStyle = effect.color;
+          ctx.strokeText(effect.text, 0, 0);
+          ctx.fillText(effect.text, 0, 0);
+        } else {
+          ctx.translate(effect.x, effect.y);
+          ctx.rotate(progress * Math.PI * 0.7);
+          ctx.fillStyle = effect.color;
+          ctx.beginPath();
+          ctx.moveTo(0, -effect.size);
+          ctx.lineTo(effect.size * 0.34, -effect.size * 0.34);
+          ctx.lineTo(effect.size, 0);
+          ctx.lineTo(effect.size * 0.34, effect.size * 0.34);
+          ctx.lineTo(0, effect.size);
+          ctx.lineTo(-effect.size * 0.34, effect.size * 0.34);
+          ctx.lineTo(-effect.size, 0);
+          ctx.lineTo(-effect.size * 0.34, -effect.size * 0.34);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        ctx.restore();
+      });
+    };
+
+    const drawScreenFeedback = (game) => {
+      if (game.warmFlash > 0) {
+        ctx.fillStyle = `rgba(255, 220, 118, ${0.16 * (game.warmFlash / 0.18)})`;
+        ctx.fillRect(0, 0, game.width, game.height);
+      }
+
+      if (game.dangerFlash > 0) {
+        ctx.fillStyle = `rgba(255, 116, 116, ${0.13 * (game.dangerFlash / 0.16)})`;
+        ctx.fillRect(0, 0, game.width, game.height);
+      }
+    };
+
+    const drawCenterBanner = (game) => {
+      const banner =
+        game.finishBanner > 0
+          ? { text: "FINISH!", subText: "おつかれにゃ！", life: game.finishBanner / catchGameConfig.finishEffectSeconds }
+          : game.startBanner > 0
+            ? { text: "START!", subText: "", life: game.startBanner / catchGameConfig.startEffectSeconds }
+            : null;
+
+      if (!banner) return;
+
+      const alpha = Math.min(1, Math.sin(banner.life * Math.PI) * 1.35);
+      const scale = 0.92 + (1 - banner.life) * 0.08;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(game.width / 2, game.height * 0.38);
+      ctx.scale(scale, scale);
+      ctx.fillStyle = "rgba(255, 248, 240, 0.88)";
+      roundedRect(-78, -34, 156, banner.subText ? 78 : 58, 28);
+      ctx.fill();
+      ctx.fillStyle = "#ff8f73";
+      ctx.font = `900 31px ${uiFontFamily}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 4;
+      ctx.strokeText(banner.text, 0, -6);
+      ctx.fillText(banner.text, 0, -6);
+
+      if (banner.subText) {
+        ctx.fillStyle = "#71462f";
+        ctx.font = `800 14px ${uiFontFamily}`;
+        ctx.fillText(banner.subText, 0, 24);
+      }
+
+      ctx.restore();
+    };
+
     const tick = (now) => {
       const game = gameRef.current;
       const delta = Math.min((now - game.lastTime) / 1000, 0.033);
       game.lastTime = now;
+      updateEffects(game, delta);
 
-      game.elapsed += delta;
-      game.spawnTimer += delta;
+      if (!game.isEnding) {
+        game.elapsed += delta;
+        game.spawnTimer += delta;
+      }
 
       const spawnInterval = Math.max(0.32, 1.02 - game.elapsed * 0.018);
-      if (game.spawnTimer >= spawnInterval) {
+      if (!game.isEnding && game.spawnTimer >= spawnInterval) {
         game.spawnTimer = 0;
         spawnFruit(game);
       }
@@ -510,12 +754,14 @@ export default function App() {
       const right = basket.x + basket.width / 2;
       const top = basket.y - basket.height / 2;
 
-      game.fruits.forEach((fruit) => {
-        fruit.y += fruit.speed * delta;
-        fruit.spin += delta * 3.4;
-      });
+      if (!game.isEnding) {
+        game.fruits.forEach((fruit) => {
+          fruit.y += fruit.speed * delta;
+          fruit.spin += delta * 3.4;
+        });
+      }
 
-      game.fruits = game.fruits.filter((fruit) => {
+      if (!game.isEnding) game.fruits = game.fruits.filter((fruit) => {
         const caught =
           fruit.x >= left &&
           fruit.x <= right &&
@@ -525,15 +771,13 @@ export default function App() {
         if (caught) {
           if (fruit.type === "bomb") {
             playSound("damage");
+            playMissEffect(game, fruit.x, fruit.y);
             game.lives -= 1;
             setLivesView(game.lives);
 
             if (game.lives <= 0) {
               game.lives = 0;
-              setFinalScore(game.score);
-              playSound("gameover");
-              stopBgm();
-              setScreen("result");
+              finishGame(game);
             }
 
             return false;
@@ -544,6 +788,7 @@ export default function App() {
               ? catchGameConfig.pointsPerRareCatch
               : catchGameConfig.pointsPerCatch;
           playSound(fruit.type === "rare" ? "rare" : "catch");
+          playCatchEffect(game, fruit);
           setScoreView(game.score);
           return false;
         }
@@ -551,15 +796,13 @@ export default function App() {
         if (fruit.y - fruit.size > game.height) {
           if (fruit.type !== "bomb") {
             playSound("miss");
+            playMissEffect(game, fruit.x, game.height - getAdBannerReservedHeight(game.height) - 42);
             game.lives -= 1;
             setLivesView(game.lives);
 
             if (game.lives <= 0) {
               game.lives = 0;
-              setFinalScore(game.score);
-              playSound("gameover");
-              stopBgm();
-              setScreen("result");
+              finishGame(game);
             }
           }
 
@@ -569,12 +812,22 @@ export default function App() {
         return true;
       });
 
+      const shakeOffset = game.screenShake > 0
+        ? Math.sin(game.screenShake * 96) * 3.5 * (game.screenShake / 0.18)
+        : 0;
+
+      ctx.save();
+      ctx.translate(shakeOffset, 0);
       drawBackground(game);
       drawBasket(game.basket);
       game.fruits.forEach(drawFruit);
+      drawEffects(game);
+      drawScreenFeedback(game);
+      drawCenterBanner(game);
       drawHud(game);
+      ctx.restore();
 
-      if (game.lives > 0) rafRef.current = requestAnimationFrame(tick);
+      if (game.lives > 0 || game.isEnding) rafRef.current = requestAnimationFrame(tick);
     };
 
     setScoreView(0);
@@ -598,6 +851,7 @@ export default function App() {
     return () => {
       stopBgm();
       cancelAnimationFrame(rafRef.current);
+      window.clearTimeout(finishTimeoutId);
       window.removeEventListener("resize", resize);
 
       if (window.visualViewport) {
