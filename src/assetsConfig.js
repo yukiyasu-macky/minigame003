@@ -17,9 +17,13 @@ export const assets = {
   ],
   hazardImage: assetPath("assets/hazard.png"),
   sounds: {
-    catch: assetPath("assets/se_catch.mp3"),
-    miss: assetPath("assets/se_miss.mp3"),
-    damage: assetPath("assets/se_damage.mp3"),
+    catch: assetPath("assets/se_catch.wav"),
+    rare: assetPath("assets/se_rare.wav"),
+    damage: assetPath("assets/se_damage.wav"),
+    miss: assetPath("assets/se_miss.wav"),
+    button: assetPath("assets/se_button.wav"),
+    start: assetPath("assets/se_start.wav"),
+    gameover: assetPath("assets/se_gameover.wav"),
     bgm: assetPath("assets/bgm.mp3"),
   },
 };

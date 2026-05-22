@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
 import { assets } from "./assetsConfig";
+import { playSound, unlockAudio } from "./audio/soundManager";
 
 const gameCopy = {
   title: "minigame003",
@@ -81,9 +82,6 @@ export default function App() {
     if (audioAssetsRef.current) return audioAssetsRef.current;
 
     audioAssetsRef.current = {
-      catch: createAudio(assets.sounds.catch, { volume: 0.65 }),
-      miss: createAudio(assets.sounds.miss, { volume: 0.55 }),
-      damage: createAudio(assets.sounds.damage, { volume: 0.75 }),
       bgm: createAudio(assets.sounds.bgm, { loop: true, volume: 0.34 }),
     };
 
@@ -172,12 +170,7 @@ export default function App() {
     ].filter(Boolean);
 
     const audioAssets = getAudioAssets();
-    const audioSources = [
-      audioAssets.bgm,
-      audioAssets.catch,
-      audioAssets.miss,
-      audioAssets.damage,
-    ].filter(Boolean);
+    const audioSources = [audioAssets.bgm].filter(Boolean);
 
     const total = imageSources.length + audioSources.length;
     let completed = 0;
@@ -198,19 +191,6 @@ export default function App() {
     });
 
     return assetPreloadRef.current.promise;
-  };
-
-  const playAudio = (name) => {
-    const audio = getAudioAssets()[name];
-    if (!audio) return;
-
-    try {
-      audio.currentTime = 0;
-      const playPromise = audio.play();
-      if (playPromise) playPromise.catch(() => {});
-    } catch {
-      // Missing or unsupported replacement audio should never interrupt play.
-    }
   };
 
   const startBgm = () => {
@@ -544,13 +524,14 @@ export default function App() {
 
         if (caught) {
           if (fruit.type === "bomb") {
-            playAudio("damage");
+            playSound("damage");
             game.lives -= 1;
             setLivesView(game.lives);
 
             if (game.lives <= 0) {
               game.lives = 0;
               setFinalScore(game.score);
+              playSound("gameover");
               stopBgm();
               setScreen("result");
             }
@@ -562,20 +543,21 @@ export default function App() {
             fruit.type === "rare"
               ? catchGameConfig.pointsPerRareCatch
               : catchGameConfig.pointsPerCatch;
-          playAudio("catch");
+          playSound(fruit.type === "rare" ? "rare" : "catch");
           setScoreView(game.score);
           return false;
         }
 
         if (fruit.y - fruit.size > game.height) {
           if (fruit.type !== "bomb") {
-            playAudio("miss");
+            playSound("miss");
             game.lives -= 1;
             setLivesView(game.lives);
 
             if (game.lives <= 0) {
               game.lives = 0;
               setFinalScore(game.score);
+              playSound("gameover");
               stopBgm();
               setScreen("result");
             }
@@ -632,6 +614,10 @@ export default function App() {
   const startGame = () => {
     if (loading < 100) return;
 
+    unlockAudio().then(() => {
+      playSound("button");
+      playSound("start");
+    });
     getAudioAssets();
     setScoreView(0);
     setLivesView(catchGameConfig.startingLives);
@@ -640,6 +626,10 @@ export default function App() {
   };
 
   const handleShare = () => {
+    unlockAudio().then(() => {
+      playSound("button");
+    });
+
     const score = finalScore;
     const iconUrl = `${window.location.origin}${assets.shareIcon}`;
 
