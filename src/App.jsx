@@ -1138,10 +1138,6 @@ export default function App() {
                   <span>{gameCopy.rareCountLabel}</span>
                   <strong>{finalRareCount}</strong>
                 </div>
-                <div className="resultStat">
-                  <span>{gameCopy.rankLabel}</span>
-                  <strong>{resultRank}</strong>
-                </div>
               </div>
               <p className="resultMessage">
                 {resultPresentation.message}
@@ -1789,8 +1785,8 @@ export default function App() {
           z-index: 1;
           width: 100%;
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 6px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
           margin: 0 0 12px;
         }
 
