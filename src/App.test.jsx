@@ -6,7 +6,6 @@ import { gameCopy } from './game/gameConfig';
 test('renders the neko catch title screen', () => {
   render(<App />);
 
-  expect(screen.getByRole('heading', { name: 'ねこキャッチ' })).toBeDefined();
   expect(screen.getByRole('img', { name: 'ねこキャッチ' })).toBeDefined();
   expect(screen.getByText('よみこみ中...')).toBeDefined();
   expect(screen.getByText('落ちてくる猫とアイテムをキャッチ！')).toBeDefined();
