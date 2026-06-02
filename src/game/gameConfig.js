@@ -15,8 +15,8 @@ export const gameCopy = {
   shareButton: "シェアする",
   replayButton: "もういちどあそぶ",
   shareAltText: "ねこキャッチのスコアをシェア！",
-  shareScoreText: (score, maxCombo, rank) =>
-    `ねこキャッチで${score}点をとったよ！最大${maxCombo}コンボ、ランク${rank}！`,
+  shareScoreText: (score, maxCombo, rank, rareCount) =>
+    `ねこキャッチで${score}点！最大${maxCombo}コンボ、ランク${rank}、レア猫${rareCount}匹に出会ったよ！`,
   shareSubtitle: "ねこキャッチ - LINE向け猫キャッチゲーム",
   shareCta: "遊んでみる！",
   shareAgain: "シェアする",
