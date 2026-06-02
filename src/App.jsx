@@ -3,7 +3,9 @@ import liff from "@line/liff";
 import { assets } from "./assetsConfig";
 import { playSound, unlockAudio } from "./audio/soundManager";
 import { catchGameConfig, gameCopy, getAdBannerReservedHeight } from "./game/gameConfig";
-import { getCatchScore, getResultMessage, getResultRank } from "./game/scoring";
+import { getResultPresentation } from "./game/resultPresentation";
+import { getCatchScore, getResultRank } from "./game/scoring";
+import { createShareFlexMessage, createShareScoreText } from "./line/share";
 
 const uiFontFamily =
   '"Hiragino Maru Gothic ProN", "Yu Gothic", "Yu Gothic UI", "M PLUS Rounded 1c", system-ui, sans-serif';
@@ -548,58 +550,93 @@ export default function App() {
     const drawHud = (game) => {
       const top = 18;
       const scoreText = `${game.score}`;
-      const timeText = `${Math.max(0, Math.ceil(catchGameConfig.durationSeconds - game.elapsed))}`;
+      const timeLeft = Math.max(0, Math.ceil(catchGameConfig.durationSeconds - game.elapsed));
+      const timeText = `${timeLeft}`;
       const lifeText = "♥".repeat(game.lives);
       const comboText = `${game.combo}`;
       const scorePop = Math.sin((game.scorePulse / 0.32) * Math.PI) * 0.1;
-      const pillHeight = 34;
-      const sidePad = 14;
+      const comboPop = game.combo > 0 ? Math.sin((game.scorePulse / 0.32) * Math.PI) * 0.08 : 0;
+      const isTimeWarning = timeLeft <= 10;
+      const pillHeight = 32;
+      const gap = Math.max(5, game.width * 0.016);
+      const scoreWidth = Math.max(84, game.width * 0.25);
+      const timeWidth = Math.max(64, game.width * 0.18);
+      const lifeWidth = Math.max(76, game.width * 0.22);
+      const hudWidth = scoreWidth + timeWidth + lifeWidth + gap * 2;
+      const startX = (game.width - hudWidth) / 2;
+      const timeX = startX + scoreWidth + gap;
+      const lifeX = timeX + timeWidth + gap;
 
-      ctx.fillStyle = "rgba(255, 248, 240, 0.86)";
-      roundedRect(12, top - scorePop * 2, 92 + scorePop * 8, pillHeight + scorePop * 4, 17);
-      ctx.fill();
+      const drawPill = ({ x, y, width, height, label, value, valueColor, scale = 0 }) => {
+        ctx.save();
+        ctx.translate(x + width / 2, y + height / 2);
+        ctx.scale(1 + scale, 1 + scale * 0.45);
+        ctx.fillStyle = "rgba(255, 250, 244, 0.88)";
+        roundedRect(-width / 2, -height / 2, width, height, height / 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.72)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(113, 70, 47, 0.64)";
+        ctx.font = `800 8px ${uiFontFamily}`;
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "left";
+        ctx.fillText(label, -width / 2 + 10, 0);
+
+        ctx.fillStyle = valueColor;
+        ctx.font = `900 ${15 + scale * 24}px ${uiFontFamily}`;
+        ctx.textAlign = "right";
+        ctx.fillText(value, width / 2 - 10, 0);
+        ctx.restore();
+      };
+
+      drawPill({
+        x: startX,
+        y: top,
+        width: scoreWidth,
+        height: pillHeight,
+        label: "SCORE",
+        value: scoreText,
+        valueColor: "#71462f",
+        scale: scorePop,
+      });
 
       if (game.scorePulse > 0) {
         ctx.fillStyle = `rgba(255, 231, 143, ${0.22 * (game.scorePulse / 0.32)})`;
-        roundedRect(18, top + 4, 78, 10, 8);
+        roundedRect(startX + 8, top + 5, scoreWidth - 16, 8, 8);
         ctx.fill();
       }
 
-      ctx.fillStyle = "rgba(113, 70, 47, 0.72)";
-      ctx.font = `800 9px ${uiFontFamily}`;
-      ctx.textBaseline = "middle";
-      ctx.textAlign = "left";
-      ctx.fillText("SCORE", 12 + sidePad, top + 17);
+      drawPill({
+        x: timeX,
+        y: top,
+        width: timeWidth,
+        height: pillHeight,
+        label: "TIME",
+        value: `${timeText}s`,
+        valueColor: isTimeWarning ? "#e85f5f" : "#58a3b4",
+        scale: isTimeWarning ? 0.06 + Math.sin(game.elapsed * 8) * 0.02 : 0,
+      });
 
-      ctx.fillStyle = "#71462f";
-      ctx.font = `900 ${16 + scorePop * 16}px ${uiFontFamily}`;
-      ctx.fillText(scoreText, 58, top + 17);
-
-      ctx.fillStyle = "rgba(255, 248, 240, 0.86)";
-      roundedRect(game.width / 2 - 42, top, 84, pillHeight, 17);
-      ctx.fill();
-
-      ctx.fillStyle = "#58a3b4";
-      ctx.font = `900 17px ${uiFontFamily}`;
-      ctx.textAlign = "center";
-      ctx.fillText(`${timeText}s`, game.width / 2, top + 17);
-
-      ctx.fillStyle = "rgba(255, 248, 240, 0.86)";
-      roundedRect(game.width - 102, top, 90, pillHeight, 17);
-      ctx.fill();
-
-      ctx.fillStyle = "#f2938d";
-      ctx.font = `900 16px ${uiFontFamily}`;
-      ctx.textAlign = "center";
-      ctx.fillText(lifeText, game.width - 57, top + 17);
+      drawPill({
+        x: lifeX,
+        y: top,
+        width: lifeWidth,
+        height: pillHeight,
+        label: "LIFE",
+        value: lifeText,
+        valueColor: "#f2938d",
+      });
 
       ctx.fillStyle = "rgba(255, 248, 240, 0.82)";
-      roundedRect(game.width / 2 - 52, top + 42, 104, 28, 14);
+      roundedRect(game.width / 2 - 50, top + 39 - comboPop * 4, 100, 27 + comboPop * 8, 14);
       ctx.fill();
 
       ctx.fillStyle = "#77a987";
-      ctx.font = `900 13px ${uiFontFamily}`;
-      ctx.fillText(`COMBO ${comboText}`, game.width / 2, top + 56);
+      ctx.font = `900 ${13 + comboPop * 18}px ${uiFontFamily}`;
+      ctx.textAlign = "center";
+      ctx.fillText(`COMBO ${comboText}`, game.width / 2, top + 53);
     };
 
     const drawFruit = (fruit) => {
@@ -615,7 +652,13 @@ export default function App() {
           : imageAssets.items[fruit.imageIndex % imageAssets.items.length];
 
       if (itemImage && isImageReady(itemImage)) {
-        const drawSize = fruit.size * 1.28;
+        const drawSize = fruit.size * (fruit.type === "bomb" ? 1.42 : fruit.type === "rare" ? 1.38 : 1.32);
+        if (fruit.type === "bomb") {
+          ctx.fillStyle = "rgba(255, 104, 104, 0.18)";
+          ctx.beginPath();
+          ctx.arc(0, 0, drawSize * 0.54, 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.drawImage(itemImage, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
         ctx.restore();
         return;
@@ -959,137 +1002,27 @@ export default function App() {
     const score = finalScore;
     const rank = getResultRank(finalScore);
     const iconUrl = `${window.location.origin}${assets.shareIcon}`;
+    const shareText = createShareScoreText({
+      score,
+      maxCombo: finalMaxCombo,
+      rank,
+      rareCount: finalRareCount,
+    });
 
     if (liff.isApiAvailable("shareTargetPicker")) {
       liff
         .shareTargetPicker([
-          {
-            type: "flex",
+          createShareFlexMessage({
             altText: gameCopy.shareAltText,
-            contents: {
-              type: "bubble",
-              hero: {
-                type: "image",
-                url: iconUrl,
-                size: "full",
-                aspectRatio: "20:13",
-                aspectMode: "cover",
-              },
-              body: {
-                type: "box",
-                layout: "vertical",
-                contents: [
-                  {
-                    type: "box",
-                    layout: "vertical",
-                    contents: [
-                      {
-                        type: "text",
-                        text: gameCopy.shareScoreText(score, finalMaxCombo, rank),
-                        size: "lg",
-                        color: "#000000",
-                        weight: "bold",
-                        wrap: true,
-                      },
-                    ],
-                    spacing: "none",
-                  },
-                  {
-                    type: "box",
-                    layout: "vertical",
-                    contents: [
-                      {
-                        type: "text",
-                        text: gameCopy.shareSubtitle,
-                        size: "sm",
-                        color: "#999999",
-                        wrap: true,
-                      },
-                    ],
-                    spacing: "none",
-                  },
-                  {
-                    type: "box",
-                    layout: "vertical",
-                    contents: [
-                      {
-                        type: "button",
-                        action: {
-                          type: "uri",
-                          label: gameCopy.shareCta,
-                          uri: `https://miniapp.line.me/${liff.id}`,
-                        },
-                        style: "primary",
-                        height: "md",
-                        color: "#17c950",
-                      },
-                      {
-                        type: "button",
-                        action: {
-                          type: "uri",
-                          label: gameCopy.shareAgain,
-                          uri: `https://miniapp.line.me/${liff.id}/share`,
-                        },
-                        style: "link",
-                        height: "md",
-                        color: "#469fd6",
-                      },
-                    ],
-                    spacing: "xs",
-                    margin: "lg",
-                  },
-                ],
-                spacing: "md",
-              },
-              footer: {
-                type: "box",
-                layout: "vertical",
-                contents: [
-                  {
-                    type: "separator",
-                    color: "#f0f0f0",
-                  },
-                  {
-                    type: "box",
-                    layout: "horizontal",
-                    contents: [
-                      {
-                        type: "image",
-                        url: iconUrl,
-                        flex: 1,
-                        gravity: "center",
-                      },
-                      {
-                        type: "text",
-                        text: gameCopy.shareFooterLabel,
-                        flex: 19,
-                        size: "xs",
-                        color: "#999999",
-                        weight: "bold",
-                        gravity: "center",
-                        wrap: false,
-                      },
-                      {
-                        type: "image",
-                        url: "https://vos.line-scdn.net/service-notifier/footer_go_btn.png",
-                        flex: 1,
-                        gravity: "center",
-                        size: "xxs",
-                        action: {
-                          type: "uri",
-                          label: "action",
-                          uri: `https://miniapp.line.me/${liff.id}`,
-                        },
-                      },
-                    ],
-                    flex: 1,
-                    spacing: "md",
-                    margin: "md",
-                  },
-                ],
-              },
-            },
-          },
+            iconUrl,
+            scoreText: shareText,
+            subtitle: gameCopy.shareSubtitle,
+            ctaLabel: gameCopy.shareCta,
+            playUrl: `https://miniapp.line.me/${liff.id}`,
+            shareAgainLabel: gameCopy.shareAgain,
+            shareUrl: `https://miniapp.line.me/${liff.id}/share`,
+            footerLabel: gameCopy.shareFooterLabel,
+          }),
         ])
         .then((res) => {
           if (res) {
@@ -1107,8 +1040,8 @@ export default function App() {
     }
   };
 
-  const resultRank = getResultRank(finalScore);
-  const resultMessage = getResultMessage(resultRank);
+  const resultPresentation = getResultPresentation(finalScore, assets);
+  const resultRank = resultPresentation.rank;
 
   return (
     <main className="app">
@@ -1118,6 +1051,9 @@ export default function App() {
             <img className="titleLogo" src={assets.titleLogo} alt={gameCopy.titleLogoAlt} />
             <h1 className="gameTitle">{gameCopy.title}</h1>
             <div className="gameFlavor">{gameCopy.titleFlavor}</div>
+            <div className="titleHero">
+              <img src={assets.shareIcon} alt="" aria-hidden="true" />
+            </div>
             <div className="titleDecor" aria-hidden="true">
               <span className="pawMark" />
               <span className="pawMark pawMarkMint" />
@@ -1176,6 +1112,18 @@ export default function App() {
                 {gameCopy.resultTitle}
                 <span className="resultPaw" aria-hidden="true">🐾</span>
               </h1>
+              <div className="resultRankBadge" aria-label={`${gameCopy.rankLabel} ${resultRank}`}>
+                <span>{gameCopy.rankLabel}</span>
+                <strong>{resultRank}</strong>
+              </div>
+              <div className="resultCatFrame">
+                <img
+                  className="resultRankImage"
+                  src={resultPresentation.image}
+                  alt=""
+                  aria-hidden="true"
+                />
+              </div>
               <p className="scoreLabel">{gameCopy.scoreLabel}</p>
               <div className="scoreBox">
                 <span className="finalScore">{finalScore}</span>
@@ -1190,14 +1138,13 @@ export default function App() {
                   <span>{gameCopy.rareCountLabel}</span>
                   <strong>{finalRareCount}</strong>
                 </div>
-                <div className="resultStat resultRank">
+                <div className="resultStat">
                   <span>{gameCopy.rankLabel}</span>
                   <strong>{resultRank}</strong>
                 </div>
               </div>
               <p className="resultMessage">
-                <img className="resultCat" src={assets.itemImages[0]} alt="" aria-hidden="true" />
-                {resultMessage}
+                {resultPresentation.message}
               </p>
             </section>
 
@@ -1323,11 +1270,37 @@ export default function App() {
         }
 
         .titleLogo {
-          width: min(112%, 500px);
+          width: min(88%, 360px);
           height: auto;
-          margin: 28px 0 6px;
+          margin: 10px 0 3px;
           display: block;
+          flex: 0 0 auto;
           filter: drop-shadow(0 14px 12px rgba(94, 60, 38, 0.18));
+        }
+
+        .titleHero {
+          width: min(156px, 44%);
+          aspect-ratio: 1;
+          margin: 8px 0 2px;
+          display: grid;
+          place-items: center;
+          flex: 0 0 auto;
+          border: 5px solid rgba(255,255,255,0.88);
+          border-radius: 50%;
+          background:
+            radial-gradient(circle at 50% 43%, rgba(255, 250, 238, 0.92), rgba(255, 222, 204, 0.78) 62%, rgba(255, 183, 188, 0.72));
+          box-shadow:
+            inset 0 -7px 0 rgba(211, 134, 95, 0.12),
+            0 10px 22px rgba(111, 73, 48, 0.16);
+          overflow: hidden;
+        }
+
+        .titleHero img {
+          width: 128%;
+          height: 128%;
+          object-fit: cover;
+          object-position: center 58%;
+          filter: saturate(1.03);
         }
 
         .titleDecor {
@@ -1399,7 +1372,7 @@ export default function App() {
         .gameTitle {
           margin: 0;
           color: #6c3a24;
-          font-size: clamp(26px, 7.2vw, 38px);
+          font-size: clamp(23px, 6.4vw, 34px);
           line-height: 1;
           font-weight: 1000;
           letter-spacing: 0;
@@ -1439,9 +1412,9 @@ export default function App() {
         .titleDescription {
           width: min(318px, 86%);
           max-width: none;
-          min-height: 48px;
-          margin: 18px 0 18px;
-          padding: 11px 18px;
+          min-height: 44px;
+          margin: 10px 0 14px;
+          padding: 9px 16px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1453,7 +1426,7 @@ export default function App() {
             inset 0 -4px 0 rgba(231, 177, 109, 0.20),
             0 6px 0 rgba(196, 126, 84, 0.18),
             0 12px 20px rgba(119, 82, 52, 0.12);
-          font-size: 15px;
+          font-size: 14px;
           font-weight: 900;
           line-height: 1.35;
         }
@@ -1474,7 +1447,7 @@ export default function App() {
         .loadingTrack {
           position: relative;
           width: min(292px, 74%);
-          height: 28px;
+          height: 24px;
           padding: 4px;
           border: 3px solid #ffffff;
           border-radius: 999px;
@@ -1550,11 +1523,11 @@ export default function App() {
 
         .loadingText {
           min-height: 26px;
-          margin: 2px 0 5px;
+          margin: 0 0 4px;
           display: flex;
           align-items: center;
           color: #6c3a24;
-          font-size: 16px;
+          font-size: 13px;
           font-weight: 900;
           letter-spacing: 0;
           text-shadow: 0 2px 0 rgba(255,255,255,0.78);
@@ -1592,7 +1565,7 @@ export default function App() {
 
         .titleScreen .primaryButton {
           width: min(378px, 88%);
-          min-height: 70px;
+          min-height: 66px;
           margin-top: 4px;
           border-width: 6px;
           padding: 16px 20px;
@@ -1655,7 +1628,7 @@ export default function App() {
         }
 
         .resultLogo {
-          width: min(226px, 66%);
+          width: min(202px, 58%);
           height: auto;
           margin: 4px 0 0;
           object-fit: contain;
@@ -1690,7 +1663,7 @@ export default function App() {
         .resultTitle {
           position: relative;
           z-index: 1;
-          margin: 0 0 14px;
+          margin: 0 0 10px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1708,6 +1681,66 @@ export default function App() {
           color: #ed9c98;
           font-size: 18px;
           text-shadow: 0 1px 0 #ffffff;
+        }
+
+        .resultRankBadge {
+          position: relative;
+          z-index: 1;
+          width: min(128px, 54%);
+          min-height: 78px;
+          margin: 0 0 8px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          border: 4px solid #fff8ec;
+          border-radius: 22px;
+          background:
+            radial-gradient(circle at 50% 20%, rgba(255,255,255,0.72), transparent 45%),
+            linear-gradient(180deg, #ffd98d, #ff9e8d);
+          box-shadow:
+            inset 0 -5px 0 rgba(170, 100, 56, 0.15),
+            0 7px 0 rgba(168, 107, 71, 0.18);
+        }
+
+        .resultRankBadge span {
+          color: rgba(113, 70, 47, 0.78);
+          font-size: 11px;
+          font-weight: 1000;
+          line-height: 1;
+        }
+
+        .resultRankBadge strong {
+          margin-top: 3px;
+          color: #fff8ec;
+          font-size: 44px;
+          font-weight: 1000;
+          line-height: 0.94;
+          text-shadow: 0 3px 0 rgba(113, 70, 47, 0.34);
+        }
+
+        .resultCatFrame {
+          position: relative;
+          z-index: 1;
+          width: min(118px, 42%);
+          aspect-ratio: 1;
+          margin: -2px 0 8px;
+          display: grid;
+          place-items: center;
+          border: 3px solid rgba(255,255,255,0.96);
+          border-radius: 26px;
+          background: rgba(255, 238, 214, 0.92);
+          box-shadow:
+            inset 0 -4px 0 rgba(220, 164, 105, 0.16),
+            0 8px 18px rgba(112, 72, 44, 0.10);
+          overflow: hidden;
+        }
+
+        .resultRankImage {
+          width: 120%;
+          height: 120%;
+          object-fit: cover;
+          object-position: center 58%;
         }
 
         .scoreLabel {
@@ -1787,11 +1820,6 @@ export default function App() {
           font-size: 20px;
           font-weight: 1000;
           line-height: 1;
-        }
-
-        .resultRank strong {
-          color: #ff8f73;
-          font-size: 24px;
         }
 
         .resultMessage {
