@@ -3,8 +3,7 @@ import liff from "@line/liff";
 import { assets } from "./assetsConfig";
 import { playSound, unlockAudio } from "./audio/soundManager";
 import { catchGameConfig, gameCopy, getAdBannerReservedHeight } from "./game/gameConfig";
-import { getResultPresentation } from "./game/resultPresentation";
-import { getCatchScore, getResultRank } from "./game/scoring";
+import { getCatchScore, getResultMessage, getResultRank } from "./game/scoring";
 import { createShareFlexMessage, createShareScoreText } from "./line/share";
 
 const uiFontFamily =
@@ -1040,8 +1039,8 @@ export default function App() {
     }
   };
 
-  const resultPresentation = getResultPresentation(finalScore, assets);
-  const resultRank = resultPresentation.rank;
+  const resultRank = getResultRank(finalScore);
+  const resultMessage = getResultMessage(resultRank);
 
   return (
     <main className="app">
@@ -1049,11 +1048,6 @@ export default function App() {
         {screen === "title" && (
           <div className="panel titleScreen">
             <img className="titleLogo" src={assets.titleLogo} alt={gameCopy.titleLogoAlt} />
-            <h1 className="gameTitle">{gameCopy.title}</h1>
-            <div className="gameFlavor">{gameCopy.titleFlavor}</div>
-            <div className="titleHero">
-              <img src={assets.shareIcon} alt="" aria-hidden="true" />
-            </div>
             <div className="titleDecor" aria-hidden="true">
               <span className="pawMark" />
               <span className="pawMark pawMarkMint" />
@@ -1116,14 +1110,6 @@ export default function App() {
                 <span>{gameCopy.rankLabel}</span>
                 <strong>{resultRank}</strong>
               </div>
-              <div className="resultCatFrame">
-                <img
-                  className="resultRankImage"
-                  src={resultPresentation.image}
-                  alt=""
-                  aria-hidden="true"
-                />
-              </div>
               <p className="scoreLabel">{gameCopy.scoreLabel}</p>
               <div className="scoreBox">
                 <span className="finalScore">{finalScore}</span>
@@ -1140,7 +1126,7 @@ export default function App() {
                 </div>
               </div>
               <p className="resultMessage">
-                {resultPresentation.message}
+                {resultMessage}
               </p>
             </section>
 
@@ -1274,31 +1260,6 @@ export default function App() {
           filter: drop-shadow(0 14px 12px rgba(94, 60, 38, 0.18));
         }
 
-        .titleHero {
-          width: min(156px, 44%);
-          aspect-ratio: 1;
-          margin: 8px 0 2px;
-          display: grid;
-          place-items: center;
-          flex: 0 0 auto;
-          border: 5px solid rgba(255,255,255,0.88);
-          border-radius: 50%;
-          background:
-            radial-gradient(circle at 50% 43%, rgba(255, 250, 238, 0.92), rgba(255, 222, 204, 0.78) 62%, rgba(255, 183, 188, 0.72));
-          box-shadow:
-            inset 0 -7px 0 rgba(211, 134, 95, 0.12),
-            0 10px 22px rgba(111, 73, 48, 0.16);
-          overflow: hidden;
-        }
-
-        .titleHero img {
-          width: 128%;
-          height: 128%;
-          object-fit: cover;
-          object-position: center 58%;
-          filter: saturate(1.03);
-        }
-
         .titleDecor {
           position: absolute;
           top: 24%;
@@ -1363,24 +1324,6 @@ export default function App() {
             linear-gradient(-35deg, transparent 44%, #5aa5b6 45% 52%, transparent 53%),
             #87d6dd;
           transform: translateY(12px);
-        }
-
-        .gameTitle {
-          margin: 0;
-          color: #6c3a24;
-          font-size: clamp(23px, 6.4vw, 34px);
-          line-height: 1;
-          font-weight: 1000;
-          letter-spacing: 0;
-          text-shadow: 0 3px 0 rgba(255,255,255,0.78);
-        }
-
-        .gameFlavor {
-          margin-top: 5px;
-          color: rgba(108,58,36,0.70);
-          font-size: 12px;
-          font-weight: 900;
-          letter-spacing: 0.08em;
         }
 
         .fruitBurst {
@@ -1713,30 +1656,6 @@ export default function App() {
           font-weight: 1000;
           line-height: 0.94;
           text-shadow: 0 3px 0 rgba(113, 70, 47, 0.34);
-        }
-
-        .resultCatFrame {
-          position: relative;
-          z-index: 1;
-          width: min(118px, 42%);
-          aspect-ratio: 1;
-          margin: -2px 0 8px;
-          display: grid;
-          place-items: center;
-          border: 3px solid rgba(255,255,255,0.96);
-          border-radius: 26px;
-          background: rgba(255, 238, 214, 0.92);
-          box-shadow:
-            inset 0 -4px 0 rgba(220, 164, 105, 0.16),
-            0 8px 18px rgba(112, 72, 44, 0.10);
-          overflow: hidden;
-        }
-
-        .resultRankImage {
-          width: 120%;
-          height: 120%;
-          object-fit: cover;
-          object-position: center 58%;
         }
 
         .scoreLabel {
