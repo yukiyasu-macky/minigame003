@@ -2,57 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import liff from "@line/liff";
 import { assets } from "./assetsConfig";
 import { playSound, unlockAudio } from "./audio/soundManager";
-
-const gameCopy = {
-  title: "minigame003",
-  titleLogoAlt: "minigame003",
-  titleFlavor: "DROP CATCH 003",
-  titleDescription: "落ちてくるアイテムをカゴでキャッチ",
-  titleBurst: "🐾 🐱 🧶",
-  resultBurst: "🐾 🐱 🐾",
-  loading: "よみこみ中...",
-  startButton: "タップしてスタート",
-  resultTitle: "けっか！",
-  scoreLabel: "にくきゅうスコア",
-  resultMessage: "またあそんでね",
-  shareButton: "シェアする",
-  replayButton: "もういちどあそぶ",
-  shareAltText: "minigame003 のスコアをシェア！",
-  shareScoreText: (score) => `minigame003で${score}点をとったよ！`,
-  shareSubtitle: "minigame003 - アイテムキャッチゲーム",
-  shareCta: "遊んでみる！",
-  shareAgain: "シェアする",
-  shareFooterLabel: "minigame003",
-  shareSuccess: "シェアしました！",
-  shareCancel: "シェアをキャンセルしました。",
-  shareError: "エラーが発生しました。",
-  shareUnavailable: "この環境ではシェア機能を利用できません。",
-};
-
-// Keep the current catch-game tuning here so minigame003 can move to new rules
-// without hunting through rendering, collision, and share UI code.
-const catchGameConfig = {
-  itemIcons: ["🍎", "🍊", "🍓", "🍇", "🍋", "🍑"],
-  rareIcons: ["🐟", "🪶", "🧶"],
-  hazardIcon: "💣",
-  startingLives: 3,
-  pointsPerCatch: 10,
-  pointsPerRareCatch: 30,
-  rareChance: 0.1,
-  adBannerReservedHeight: 100,
-  adBannerMinHeight: 80,
-  adBannerMaxHeight: 120,
-  basketScale: 1.2,
-  itemScale: 1.24,
-  startEffectSeconds: 0.72,
-  finishEffectSeconds: 0.64,
-};
-
-const getAdBannerReservedHeight = (screenHeight) =>
-  Math.min(
-    catchGameConfig.adBannerMaxHeight,
-    Math.max(catchGameConfig.adBannerMinHeight, screenHeight * 0.12)
-  );
+import { catchGameConfig, gameCopy, getAdBannerReservedHeight } from "./game/gameConfig";
+import { getCatchScore, getResultMessage, getResultRank } from "./game/scoring";
 
 const uiFontFamily =
   '"Hiragino Maru Gothic ProN", "Yu Gothic", "Yu Gothic UI", "M PLUS Rounded 1c", system-ui, sans-serif';
@@ -68,7 +19,10 @@ export default function App() {
   const [loading, setLoading] = useState(0);
   const [scoreView, setScoreView] = useState(0);
   const [livesView, setLivesView] = useState(catchGameConfig.startingLives);
+  const [timeView, setTimeView] = useState(catchGameConfig.durationSeconds);
   const [finalScore, setFinalScore] = useState(0);
+  const [finalMaxCombo, setFinalMaxCombo] = useState(0);
+  const [finalRareCount, setFinalRareCount] = useState(0);
 
   const createAudio = (src, options = {}) => {
     if (!src || typeof Audio === "undefined") return null;
@@ -277,6 +231,10 @@ export default function App() {
       elapsed: 0,
       spawnTimer: 0,
       lastTime: performance.now(),
+      combo: 0,
+      maxCombo: 0,
+      rareCount: 0,
+      remainingSeconds: catchGameConfig.durationSeconds,
       fruits: [],
       effects: [],
       scorePulse: 0,
@@ -421,11 +379,26 @@ export default function App() {
       }
     };
 
-    const playCatchEffect = (game, fruit) => {
+    const addPawEffects = (game, x, y, options = {}) => {
+      const count = options.count ?? 4;
+
+      for (let index = 0; index < count; index += 1) {
+        game.effects.push({
+          kind: "paw",
+          x: x + (Math.random() - 0.5) * 30,
+          y: y + (Math.random() - 0.5) * 22,
+          vx: (Math.random() - 0.5) * 34,
+          vy: -28 - Math.random() * 20,
+          age: 0,
+          duration: options.duration ?? 0.42,
+          size: (options.size ?? 9) + Math.random() * 3,
+          color: options.color ?? "#ff9f96",
+        });
+      }
+    };
+
+    const playCatchEffect = (game, fruit, points) => {
       const isRare = fruit.type === "rare";
-      const points = isRare
-        ? catchGameConfig.pointsPerRareCatch
-        : catchGameConfig.pointsPerCatch;
 
       game.basketPulse = 0.28;
       game.scorePulse = 0.32;
@@ -443,6 +416,10 @@ export default function App() {
           ? ["#fff176", "#ffb3d1", "#9ff4df", "#b7d8ff"]
           : ["#fff4a8", "#ffb2a3", "#8fe8d1"],
       });
+      addPawEffects(game, fruit.x, fruit.y, {
+        count: isRare ? 6 : 4,
+        color: isRare ? "#ffbd6c" : "#ff9f96",
+      });
 
       if (isRare) {
         game.warmFlash = 0.18;
@@ -452,9 +429,18 @@ export default function App() {
           duration: 0.58,
         });
       }
+
+      if (game.combo > 0 && game.combo % 5 === 0) {
+        addTextEffect(game, fruit.x, fruit.y - fruit.size * 1.55, `${game.combo} COMBO`, {
+          size: game.combo >= 10 ? 22 : 18,
+          color: "#77caa5",
+          duration: 0.56,
+        });
+      }
     };
 
     const playMissEffect = (game, x, y) => {
+      game.combo = 0;
       game.basketShake = 0.28;
       game.screenShake = 0.18;
       game.dangerFlash = 0.16;
@@ -471,12 +457,26 @@ export default function App() {
       game.isEnding = true;
       game.finishBanner = catchGameConfig.finishEffectSeconds;
       setFinalScore(game.score);
+      setFinalMaxCombo(game.maxCombo);
+      setFinalRareCount(game.rareCount);
       playSound("gameover");
       stopBgm();
 
       finishTimeoutId = window.setTimeout(() => {
         if (gameRef.current === game) setScreen("result");
       }, catchGameConfig.finishEffectSeconds * 1000);
+    };
+
+    const updateRemainingTime = (game) => {
+      const remainingSeconds = Math.max(
+        0,
+        Math.ceil(catchGameConfig.durationSeconds - game.elapsed)
+      );
+
+      if (remainingSeconds !== game.remainingSeconds) {
+        game.remainingSeconds = remainingSeconds;
+        setTimeView(remainingSeconds);
+      }
     };
 
     const updateEffects = (game, delta) => {
@@ -495,6 +495,10 @@ export default function App() {
           effect.x += effect.vx * delta;
           effect.y += effect.vy * delta;
           effect.vy += 90 * delta;
+        } else if (effect.kind === "paw") {
+          effect.x += effect.vx * delta;
+          effect.y += effect.vy * delta;
+          effect.vy += 72 * delta;
         }
 
         return effect.age < effect.duration;
@@ -522,40 +526,80 @@ export default function App() {
       ctx.fillRect(0, 0, game.width, game.height);
     };
 
+    const drawAdReservedArea = (game) => {
+      const adHeight = getAdBannerReservedHeight(game.height);
+      const y = game.height - adHeight;
+
+      ctx.fillStyle = "rgba(255, 248, 240, 0.58)";
+      ctx.fillRect(0, y, game.width, adHeight);
+      ctx.strokeStyle = "rgba(142, 107, 75, 0.18)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, y + 0.5);
+      ctx.lineTo(game.width, y + 0.5);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(113, 70, 47, 0.36)";
+      ctx.font = `800 12px ${uiFontFamily}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("広告", game.width / 2, y + adHeight / 2);
+    };
+
     const drawHud = (game) => {
       const top = 18;
       const scoreText = `${game.score}`;
+      const timeText = `${Math.max(0, Math.ceil(catchGameConfig.durationSeconds - game.elapsed))}`;
       const lifeText = "♥".repeat(game.lives);
+      const comboText = `${game.combo}`;
       const scorePop = Math.sin((game.scorePulse / 0.32) * Math.PI) * 0.1;
+      const pillHeight = 34;
+      const sidePad = 14;
 
       ctx.fillStyle = "rgba(255, 248, 240, 0.86)";
-      roundedRect(18, top - scorePop * 2, 108 + scorePop * 8, 36 + scorePop * 4, 18);
+      roundedRect(12, top - scorePop * 2, 92 + scorePop * 8, pillHeight + scorePop * 4, 17);
       ctx.fill();
 
       if (game.scorePulse > 0) {
         ctx.fillStyle = `rgba(255, 231, 143, ${0.22 * (game.scorePulse / 0.32)})`;
-        roundedRect(22, top + 4, 96, 10, 8);
+        roundedRect(18, top + 4, 78, 10, 8);
         ctx.fill();
       }
 
       ctx.fillStyle = "rgba(113, 70, 47, 0.72)";
-      ctx.font = `800 10px ${uiFontFamily}`;
+      ctx.font = `800 9px ${uiFontFamily}`;
       ctx.textBaseline = "middle";
       ctx.textAlign = "left";
-      ctx.fillText("SCORE", 32, top + 18);
+      ctx.fillText("SCORE", 12 + sidePad, top + 17);
 
       ctx.fillStyle = "#71462f";
-      ctx.font = `900 ${18 + scorePop * 18}px ${uiFontFamily}`;
-      ctx.fillText(scoreText, 75, top + 18);
+      ctx.font = `900 ${16 + scorePop * 16}px ${uiFontFamily}`;
+      ctx.fillText(scoreText, 58, top + 17);
 
       ctx.fillStyle = "rgba(255, 248, 240, 0.86)";
-      roundedRect(game.width - 104, top, 86, 36, 18);
+      roundedRect(game.width / 2 - 42, top, 84, pillHeight, 17);
+      ctx.fill();
+
+      ctx.fillStyle = "#58a3b4";
+      ctx.font = `900 17px ${uiFontFamily}`;
+      ctx.textAlign = "center";
+      ctx.fillText(`${timeText}s`, game.width / 2, top + 17);
+
+      ctx.fillStyle = "rgba(255, 248, 240, 0.86)";
+      roundedRect(game.width - 102, top, 90, pillHeight, 17);
       ctx.fill();
 
       ctx.fillStyle = "#f2938d";
-      ctx.font = `900 17px ${uiFontFamily}`;
+      ctx.font = `900 16px ${uiFontFamily}`;
       ctx.textAlign = "center";
-      ctx.fillText(lifeText, game.width - 61, top + 18);
+      ctx.fillText(lifeText, game.width - 57, top + 17);
+
+      ctx.fillStyle = "rgba(255, 248, 240, 0.82)";
+      roundedRect(game.width / 2 - 52, top + 42, 104, 28, 14);
+      ctx.fill();
+
+      ctx.fillStyle = "#77a987";
+      ctx.font = `900 13px ${uiFontFamily}`;
+      ctx.fillText(`COMBO ${comboText}`, game.width / 2, top + 56);
     };
 
     const drawFruit = (fruit) => {
@@ -661,7 +705,7 @@ export default function App() {
           ctx.fillStyle = effect.color;
           ctx.strokeText(effect.text, 0, 0);
           ctx.fillText(effect.text, 0, 0);
-        } else {
+        } else if (effect.kind === "sparkle") {
           ctx.translate(effect.x, effect.y);
           ctx.rotate(progress * Math.PI * 0.7);
           ctx.fillStyle = effect.color;
@@ -676,6 +720,18 @@ export default function App() {
           ctx.lineTo(-effect.size * 0.34, -effect.size * 0.34);
           ctx.closePath();
           ctx.fill();
+        } else {
+          ctx.translate(effect.x, effect.y);
+          ctx.scale(1 - progress * 0.15, 1 - progress * 0.15);
+          ctx.fillStyle = effect.color;
+          ctx.beginPath();
+          ctx.ellipse(0, 3, effect.size * 0.58, effect.size * 0.48, 0, 0, Math.PI * 2);
+          ctx.fill();
+          [0, 1, 2].forEach((toe) => {
+            ctx.beginPath();
+            ctx.arc((toe - 1) * effect.size * 0.42, -effect.size * 0.28, effect.size * 0.24, 0, Math.PI * 2);
+            ctx.fill();
+          });
         }
 
         ctx.restore();
@@ -741,6 +797,11 @@ export default function App() {
       if (!game.isEnding) {
         game.elapsed += delta;
         game.spawnTimer += delta;
+        updateRemainingTime(game);
+
+        if (game.elapsed >= catchGameConfig.durationSeconds) {
+          finishGame(game);
+        }
       }
 
       const spawnInterval = Math.max(0.32, 1.02 - game.elapsed * 0.018);
@@ -783,12 +844,18 @@ export default function App() {
             return false;
           }
 
-          game.score +=
-            fruit.type === "rare"
-              ? catchGameConfig.pointsPerRareCatch
-              : catchGameConfig.pointsPerCatch;
+          game.combo += 1;
+          game.maxCombo = Math.max(game.maxCombo, game.combo);
+          if (fruit.type === "rare") game.rareCount += 1;
+          const points = getCatchScore({
+            type: fruit.type,
+            combo: game.combo,
+            normalPoints: catchGameConfig.pointsPerCatch,
+            rarePoints: catchGameConfig.pointsPerRareCatch,
+          });
+          game.score += points;
           playSound(fruit.type === "rare" ? "rare" : "catch");
-          playCatchEffect(game, fruit);
+          playCatchEffect(game, fruit, points);
           setScoreView(game.score);
           return false;
         }
@@ -819,6 +886,7 @@ export default function App() {
       ctx.save();
       ctx.translate(shakeOffset, 0);
       drawBackground(game);
+      drawAdReservedArea(game);
       drawBasket(game.basket);
       game.fruits.forEach(drawFruit);
       drawEffects(game);
@@ -831,6 +899,7 @@ export default function App() {
     };
 
     setScoreView(0);
+    setTimeView(catchGameConfig.durationSeconds);
     setLivesView(catchGameConfig.startingLives);
     startBgm();
     resize();
@@ -874,8 +943,11 @@ export default function App() {
     });
     getAudioAssets();
     setScoreView(0);
+    setTimeView(catchGameConfig.durationSeconds);
     setLivesView(catchGameConfig.startingLives);
     setFinalScore(0);
+    setFinalMaxCombo(0);
+    setFinalRareCount(0);
     setScreen("game");
   };
 
@@ -885,6 +957,7 @@ export default function App() {
     });
 
     const score = finalScore;
+    const rank = getResultRank(finalScore);
     const iconUrl = `${window.location.origin}${assets.shareIcon}`;
 
     if (liff.isApiAvailable("shareTargetPicker")) {
@@ -912,7 +985,7 @@ export default function App() {
                     contents: [
                       {
                         type: "text",
-                        text: gameCopy.shareScoreText(score),
+                        text: gameCopy.shareScoreText(score, finalMaxCombo, rank),
                         size: "lg",
                         color: "#000000",
                         weight: "bold",
@@ -1034,12 +1107,17 @@ export default function App() {
     }
   };
 
+  const resultRank = getResultRank(finalScore);
+  const resultMessage = getResultMessage(resultRank);
+
   return (
     <main className="app">
       <section className="phoneFrame">
         {screen === "title" && (
           <div className="panel titleScreen">
             <img className="titleLogo" src={assets.titleLogo} alt={gameCopy.titleLogoAlt} />
+            <h1 className="gameTitle">{gameCopy.title}</h1>
+            <div className="gameFlavor">{gameCopy.titleFlavor}</div>
             <div className="titleDecor" aria-hidden="true">
               <span className="pawMark" />
               <span className="pawMark pawMarkMint" />
@@ -1083,7 +1161,7 @@ export default function App() {
           <>
             <canvas ref={canvasRef} className="gameCanvas" />
             <div className="srOnly">
-              Score {scoreView} Life {livesView}
+              スコア {scoreView} 残り {timeView} 秒 ライフ {livesView}
             </div>
           </>
         )}
@@ -1103,9 +1181,23 @@ export default function App() {
                 <span className="finalScore">{finalScore}</span>
                 <span className="scoreUnit">pt</span>
               </div>
+              <div className="resultStats" aria-label="プレイ結果">
+                <div className="resultStat">
+                  <span>{gameCopy.maxComboLabel}</span>
+                  <strong>{finalMaxCombo}</strong>
+                </div>
+                <div className="resultStat">
+                  <span>{gameCopy.rareCountLabel}</span>
+                  <strong>{finalRareCount}</strong>
+                </div>
+                <div className="resultStat resultRank">
+                  <span>{gameCopy.rankLabel}</span>
+                  <strong>{resultRank}</strong>
+                </div>
+              </div>
               <p className="resultMessage">
                 <img className="resultCat" src={assets.itemImages[0]} alt="" aria-hidden="true" />
-                {gameCopy.resultMessage}
+                {resultMessage}
               </p>
             </section>
 
@@ -1233,7 +1325,7 @@ export default function App() {
         .titleLogo {
           width: min(112%, 500px);
           height: auto;
-          margin: 40px 0 18px;
+          margin: 28px 0 6px;
           display: block;
           filter: drop-shadow(0 14px 12px rgba(94, 60, 38, 0.18));
         }
@@ -1306,17 +1398,18 @@ export default function App() {
 
         .gameTitle {
           margin: 0;
-          color: #263253;
-          font-size: clamp(34px, 10vw, 54px);
+          color: #6c3a24;
+          font-size: clamp(26px, 7.2vw, 38px);
           line-height: 1;
+          font-weight: 1000;
           letter-spacing: 0;
-          text-shadow: 0 4px 0 rgba(255,255,255,0.62);
+          text-shadow: 0 3px 0 rgba(255,255,255,0.78);
         }
 
         .gameFlavor {
-          margin-top: 8px;
-          color: rgba(38,50,83,0.72);
-          font-size: 14px;
+          margin-top: 5px;
+          color: rgba(108,58,36,0.70);
+          font-size: 12px;
           font-weight: 900;
           letter-spacing: 0.08em;
         }
@@ -1347,7 +1440,7 @@ export default function App() {
           width: min(318px, 86%);
           max-width: none;
           min-height: 48px;
-          margin: 24px 0 20px;
+          margin: 18px 0 18px;
           padding: 11px 18px;
           display: flex;
           align-items: center;
@@ -1553,8 +1646,8 @@ export default function App() {
 
         .resultScreen {
           justify-content: flex-start;
-          gap: 10px;
-          padding: 26px 24px calc(var(--ad-banner-reserved-height) + 18px);
+          gap: 8px;
+          padding: 20px 24px calc(var(--ad-banner-reserved-height) + 14px);
           background:
             linear-gradient(180deg, rgba(255, 248, 240, 0.62), rgba(224, 184, 139, 0.58)),
             url("${assets.background}") center / cover no-repeat,
@@ -1562,7 +1655,7 @@ export default function App() {
         }
 
         .resultLogo {
-          width: min(250px, 72%);
+          width: min(226px, 66%);
           height: auto;
           margin: 4px 0 0;
           object-fit: contain;
@@ -1572,7 +1665,7 @@ export default function App() {
         .resultCard {
           position: relative;
           width: min(294px, 88%);
-          padding: 22px 20px 20px;
+          padding: 18px 18px 17px;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -1634,8 +1727,8 @@ export default function App() {
         .scoreBox {
           position: relative;
           z-index: 1;
-          min-height: 72px;
-          margin: 0 0 12px;
+          min-height: 62px;
+          margin: 0 0 8px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1644,7 +1737,7 @@ export default function App() {
         .finalScore {
           margin: 0 7px 0 0;
           color: #8d6f63;
-          font-size: clamp(52px, 15vw, 70px);
+          font-size: clamp(46px, 13vw, 62px);
           font-weight: 1000;
           line-height: 1;
           text-shadow: 0 3px 0 rgba(255,255,255,0.95);
@@ -1658,6 +1751,49 @@ export default function App() {
           line-height: 1;
         }
 
+        .resultStats {
+          position: relative;
+          z-index: 1;
+          width: 100%;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 6px;
+          margin: 0 0 12px;
+        }
+
+        .resultStat {
+          min-height: 52px;
+          padding: 7px 4px 6px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          border-radius: 14px;
+          background: rgba(255, 250, 243, 0.90);
+          box-shadow: inset 0 -2px 0 rgba(231, 202, 171, 0.38);
+        }
+
+        .resultStat span {
+          color: rgba(113, 70, 47, 0.68);
+          font-size: 10px;
+          font-weight: 900;
+          line-height: 1.15;
+          white-space: nowrap;
+        }
+
+        .resultStat strong {
+          margin-top: 3px;
+          color: #8d6f63;
+          font-size: 20px;
+          font-weight: 1000;
+          line-height: 1;
+        }
+
+        .resultRank strong {
+          color: #ff8f73;
+          font-size: 24px;
+        }
+
         .resultMessage {
           position: relative;
           z-index: 1;
@@ -1667,7 +1803,7 @@ export default function App() {
           justify-content: center;
           gap: 8px;
           color: rgba(113, 70, 47, 0.76);
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 900;
         }
 

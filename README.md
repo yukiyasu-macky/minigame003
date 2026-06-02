@@ -1,8 +1,8 @@
-# minigame003
+# ねこキャッチ
 
-minigame003 is a small browser game built with React and Vite.
+ねこキャッチ is a small browser game built with React and Vite.
 
-The current version is a canvas-based item catch game. The player moves a basket, catches falling items for points, and avoids hazards. This repository is prepared so the title, share copy, assets, and core game settings can be changed independently as minigame003 evolves into a game separate from minigame001.
+The current version is a canvas-based cat catch game. The player moves a cat bed, catches falling cats and cat items for points, and avoids the vacuum. This repository is prepared so the title, share copy, assets, and core game settings can be changed independently.
 
 ## Available Scripts
 
